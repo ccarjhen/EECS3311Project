@@ -7,6 +7,7 @@ import grocery.adapter.LongosAdapter;
 import grocery.adapter.NoFrillsAdapter;
 import grocery.adapter.StoreAdapter;
 import grocery.adapter.WalmartAdapter;
+import grocery.controller.ShoppingController;
 import grocery.model.Product;
 import grocery.model.ShoppingItem;
 import grocery.model.ShoppingPlan;
@@ -267,6 +268,25 @@ public class Main {
             } catch (IllegalStateException ex) {
                 System.out.println("Optimization failed: " + ex.getMessage());
             }
+        }
+
+        // Test 8 (Shopping Controller)
+
+        ShoppingController controller = new ShoppingController(searchService);
+
+        // Choose Cheapest Strategy
+        controller.setOptimizationStrategy(cheapest);
+
+        ShoppingPlan optimizedPlan = controller.optimize(plan);
+
+        System.out.println("\n=== CONTROLLER TEST ===");
+
+        for (ShoppingItem item : optimizedPlan.getShoppingItems()) {
+            System.out.println(
+                item.getName() + " | " +
+                item.getProduct().getStore() + " | $" +
+                item.getProduct().getPrice()
+            );
         }
     }
 }
