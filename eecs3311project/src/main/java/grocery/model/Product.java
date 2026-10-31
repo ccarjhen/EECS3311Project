@@ -21,6 +21,13 @@ public class Product {
         this.unit = unit;
     }
 
+    public double getUnitPrice() {
+        if (size <= 0) {
+            throw new IllegalArgumentException("Invalid product size////////////////////////////////????/");
+        }
+        return price / size;
+    }
+
     public String getProdId() {
         return prodId;
     }

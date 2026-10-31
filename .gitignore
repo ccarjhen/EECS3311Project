@@ -1,0 +1,15 @@
+
+# Maven generated files
+target/
+
+# API keys and secrets
+.env
+.env.*
+!.env.example
+config.local.json
+
+# macOS files
+.DS_Store
+
+# Java compiled files
+*.class

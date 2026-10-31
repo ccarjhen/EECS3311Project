@@ -1,16 +1,13 @@
 package grocery;
 
 import java.util.List;
-import grocery.adapter.WalmartAdapter;
-import grocery.adapter.NoFrillsAdapter;
-import java.util.List;
 
 import grocery.adapter.LongosAdapter;
+import grocery.adapter.NoFrillsAdapter;
 import grocery.adapter.StoreAdapter;
+import grocery.adapter.WalmartAdapter;
 import grocery.model.Product;
-import grocery.model.ShoppingItem;
-import grocery.model.ShoppingPlan;
-import grocery.model.UserPreferences;
+import grocery.service.PriceComparisonService;
 import grocery.service.ProductSearchService;
 
 
@@ -70,5 +67,22 @@ public class Main {
         }
 
         System.out.println("Total results: " + results.size());
+
+
+        PriceComparisonService comparisonService = new PriceComparisonService();
+
+        List<Product> sorted = comparisonService.comparePrices(results);
+
+        System.out.println("===Price Comparison===");
+        for (Product product : sorted) {
+            System.out.println(
+            product.getName() + " | " +
+            product.getStore() + " | $" +
+            product.getPrice() + " | Unit Price: $" +
+            product.getUnitPrice() + "/" +
+            product.getUnit()
+            );
+        }
+        
     }
 }
