@@ -1,0 +1,95 @@
+package grocery.strategy;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
+
+import grocery.model.Product;
+import grocery.model.ShoppingItem;
+import grocery.model.ShoppingPlan;
+import grocery.service.ProductSearchService;
+import grocery.service.PromotionService;
+
+
+class OptimizationSupport {
+
+    private final ProductSearchService searchService;
+    private final PromotionService promotionService;
+    private final boolean hasMembership;
+    private final LocalDate date;
+
+
+    OptimizationSupport(ProductSearchService searchService, PromotionService promotionService, boolean hasMembership, LocalDate date) {
+        this.searchService = searchService;
+        this.promotionService = promotionService;
+        this.hasMembership = hasMembership;
+        this.date = date;
+    }
+
+    List<Product> findOptions(ShoppingItem item, Set<String> stores){
+        List<Product> result = new ArrayList<>();
+
+        for(Product product: searchService.search(item.getName())){
+            if (stores != null && !stores.contains(product.getStore())){
+                continue;
+            }
+            
+            // Initial compatibility rule: same requested category
+            if(!product.getCategory().equalsIgnoreCase(item.getCategory())){
+                continue;
+            }
+            result.add(product);
+        }
+
+        return result;
+    }
+
+    double cost(Product product, int quantity){
+        return promotionService.getDiscountedTotal(product, quantity, hasMembership, date);
+    }
+
+    Product cheapest(List<Product> options, int quantity){
+        return options.stream().min(Comparator.comparingDouble(p -> cost(p, quantity))).orElseThrow(() -> new IllegalArgumentException("No suitable product found"));
+    }
+
+    ShoppingPlan buildPlan(ShoppingPlan original,
+                           Set<String> allowedStores) {
+
+        ShoppingPlan result = new ShoppingPlan(
+            original.getName(), original.getEstimatedBudget()
+        );
+
+        for (ShoppingItem item : original.getShoppingItems()) {
+            List<Product> options = findOptions(item, allowedStores);
+
+            if (options.isEmpty()) {
+                throw new IllegalStateException(
+                    "Cannot fulfill shopping item: " + item.getName()
+                );
+            }
+
+            Product selected = cheapest(options, item.getQuantity());
+
+            ShoppingItem copy = new ShoppingItem(
+                item.getName(), item.getCategory(), item.getQuantity()
+            );
+
+            copy.setProduct(selected);
+            copy.setPurchased(item.isPurchased());
+            result.addItem(copy);
+        }
+
+        return result;
+    }
+
+    double effectiveTotal(ShoppingPlan plan) {
+        double total = 0;
+
+        for (ShoppingItem item : plan.getShoppingItems()) {
+            total += cost(item.getProduct(), item.getQuantity());
+        }
+
+        return total;
+    }
+}

@@ -13,116 +13,17 @@ import grocery.model.ShoppingPlan;
 import grocery.model.UserPreferences;
 import grocery.service.ProductSearchService;
 import grocery.service.PromotionService;
+import grocery.strategy.CheapestStrat;
+import grocery.strategy.FewestStoresStrat;
+import grocery.strategy.OneStoreStrat;
+import grocery.strategy.OptimizationStrat;
 
 
 
 
 public class Main {
     public static void main(String[] args) {
-        // System.out.println("EECS3311 Grocery Project!");
-
-        // Product milk = new Product(
-        //     "P001", "2% Milk", "Neilson", "Dairy", "Longos", 6.49, 4, "L"
-        // );
-
-        // Product bread = new Product(
-        //     "P002", "White Bread", "Wonder", "Bakery", "Walmart", 3.49, 675, "g"
-        // );
-
-        // ShoppingItem milkItem = new ShoppingItem("Milk", "Dairy", 2);
-        // milkItem.setProduct(milk);
-
-        // ShoppingItem breadItem = new ShoppingItem("Bread", "Bakery", 1);
-        // breadItem.setProduct(bread);
-
-        // ShoppingPlan plan = new ShoppingPlan("Weekly Groceries", 50.00);
-
-        // plan.addItem(milkItem);
-        // plan.addItem(breadItem);
-
-        // for (ShoppingItem item : plan.getShoppingItems()) {
-        //     System.out.println(item.getName() + "  x" + item.getQuantity() + " = $" + item.getSubtotal());
-        // }
-
-        // System.out.println("Total: $" + plan.calculateTotal());
-        // System.out.println("On Budget: " + plan.isOnBudget());
         
-        // milkItem.checkPurchased();
-        // System.out.println("Milk purchased: " + milkItem.isPurchased());
-
-        // // Initialize the store adapter for Longos
-        // StoreAdapter store = new LongosAdapter();
-
-        // List<Product> results = store.search("Milk");
-
-        // for (Product product : results) {
-        //     System.out.println(product);
-        // }
-
-        // StoreAdapter longos = new LongosAdapter();
-        // StoreAdapter walmart = new WalmartAdapter();
-        // StoreAdapter noFrills = new NoFrillsAdapter();
-
-        // // Search for products across all stores
-
-        // ProductSearchService searchService = new ProductSearchService(List.of(longos, walmart, noFrills));
-
-        // List<Product> results = searchService.search("Milk");
-
-        // System.out.println("=== Search Results ===");
-        // for (Product product : results) {
-        //     System.out.println(product);
-        // }
-
-        // System.out.println("Total results: " + results.size());
-
-        // // Price comparison for the search results
-
-        // PriceComparisonService comparisonService = new PriceComparisonService();
-
-        // List<Product> sorted = comparisonService.comparePrices(results);
-
-
-        // System.out.println("===Price Comparison===");
-        // for (Product product : sorted) {
-        //     System.out.println(
-        //     product.getName() + " | " +
-        //     product.getStore() + " | $" +
-        //     product.getPrice() + " | Unit Price: $" +
-        //     product.getUnitPrice() + "/" +
-        //     product.getUnit()
-        //     );
-        // }
-
-        // // Price Promotion
-        // PromotionService promotionService = new PromotionService();
-
-        // List<Product> resultsPromotion = searchService.search("Milk");
-
-        // int quantity = 2;
-        // boolean hasMembership = true;
-        // LocalDate today = LocalDate.now();
-
-        // System.out.println("=== Promotion Detection ===");
-
-        // for (Product product : resultsPromotion) {
-        //     double regularTotal = product.getPrice() * quantity;
-
-        //     String status = promotionService.checkPromotions(product, quantity, hasMembership, today);
-
-        //     double discount = promotionService.calculateDiscount(product, quantity, hasMembership, today);
-
-        //     double finalTotal = promotionService.getDiscountedTotal(product, quantity, hasMembership, today);
-
-        //     System.out.println("------------------------");
-        //     System.out.println(product.getName());
-        //     System.out.println("Store: " + product.getStore());
-        //     System.out.printf("Regular total: $%.2f%n", regularTotal);
-        //     System.out.println("Promotion status: " + status);
-        //     System.out.printf("Discount: $%.2f%n", discount);
-        //     System.out.printf("Final total: $%.2f%n", finalTotal);
-
-        // }
 
         System.out.println("=====TEST=====");
 
@@ -293,5 +194,79 @@ public class Main {
             preferences.isExcludedItem("Chicken")
         );
 
+        // Test 7 (Optimization Strategy)
+        System.out.println("\n=== Test 7 (Optimization Strategy) ===");
+
+
+        // Create an initial shopping plan
+        ShoppingPlan plan = new ShoppingPlan("Weekly Groceries", 50.00);
+
+        plan.addItem(new ShoppingItem("Milk", "Dairy", 2));
+        plan.addItem(new ShoppingItem("Bread", "Bakery", 1));
+        plan.addItem(new ShoppingItem("Eggs", "Dairy", 1));
+
+        // Initialize strategies
+        LocalDate date = LocalDate.now();
+        boolean hasMembership1 = true;
+
+        OptimizationStrat cheapest = new CheapestStrat(searchService, promotionService, hasMembership1, date);
+
+        OptimizationStrat fewestStores = new FewestStoresStrat(searchService, promotionService, hasMembership1, date);
+
+        OptimizationStrat oneStore = new OneStoreStrat(searchService, promotionService, hasMembership1, date, "Walmart");
+
+        // Test each strategy
+        OptimizationStrat[] strategies = {
+            cheapest, fewestStores, oneStore
+        };
+
+        String[] names = {
+            "CHEAPEST", "FEWEST STORES", "ONE STORE - WALMART"
+        };
+
+        for (int i = 0; i < strategies.length; i++) {
+
+            System.out.println("\n=== " + names[i] + " ===");
+
+            try {
+                ShoppingPlan result = strategies[i].optimize(plan);
+
+                double effectiveTotal = 0;
+
+                for (ShoppingItem item : result.getShoppingItems()) {
+                    Product product = item.getProduct();
+
+                    double cost = promotionService.getDiscountedTotal(
+                        product,
+                        item.getQuantity(),
+                        hasMembership1,
+                        date
+                    );
+
+                    effectiveTotal += cost;
+
+                    System.out.printf(
+                        "%s | %s | %s | $%.2f%n",
+                        item.getName(),
+                        product.getName(),
+                        product.getStore(),
+                        cost
+                    );
+                }
+
+                System.out.printf(
+                    "Promotion-adjusted total: $%.2f%n",
+                    effectiveTotal
+                );
+
+                System.out.println(
+                    "Within budget: " +
+                    (effectiveTotal <= result.getEstimatedBudget())
+                );
+
+            } catch (IllegalStateException ex) {
+                System.out.println("Optimization failed: " + ex.getMessage());
+            }
+        }
     }
 }

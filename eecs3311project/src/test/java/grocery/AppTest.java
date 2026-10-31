@@ -6,6 +6,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
@@ -18,6 +19,13 @@ import grocery.model.ShoppingItem;
 import grocery.model.ShoppingPlan;
 import grocery.service.ProductSearchService;
 import grocery.service.PromotionService;
+import grocery.strategy.OneStoreStrat;
+import grocery.strategy.OptimizationStrat;
+
+
+
+
+
 
 public class AppTest {
 
@@ -198,5 +206,40 @@ public class AppTest {
         );
 
         assertEquals(8.00, finalTotal, 0.001);
+    }
+
+    // Test 9: Optimization Strategy
+    @Test
+    public void testOneStoreOptimization() {
+
+        ProductSearchService search = new ProductSearchService(
+            List.of(
+                new LongosAdapter(),
+                new WalmartAdapter(),
+                new NoFrillsAdapter()
+            )
+        );
+
+        OptimizationStrat strategy = new OneStoreStrat(
+            search,
+            new PromotionService(),
+            false,
+            LocalDate.of(2026, 10, 31),
+            "Walmart"
+        );
+
+        ShoppingPlan plan = new ShoppingPlan("Test Plan", 50.0);
+
+        plan.addItem(new ShoppingItem("Milk", "Dairy", 1));
+        plan.addItem(new ShoppingItem("Bread", "Bakery", 1));
+
+        ShoppingPlan result = strategy.optimize(plan);
+
+        assertEquals(2, result.getShoppingItems().size());
+
+        for (ShoppingItem item : result.getShoppingItems()) {
+            assertNotNull(item.getProduct());
+            assertEquals("Walmart", item.getProduct().getStore());
+        }
     }
 }
