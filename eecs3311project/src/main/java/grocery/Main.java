@@ -1,5 +1,6 @@
 package grocery;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import grocery.adapter.LongosAdapter;
@@ -9,6 +10,7 @@ import grocery.adapter.WalmartAdapter;
 import grocery.model.Product;
 import grocery.service.PriceComparisonService;
 import grocery.service.ProductSearchService;
+import grocery.service.PromotionService;
 
 
 public class Main {
@@ -57,6 +59,8 @@ public class Main {
         StoreAdapter walmart = new WalmartAdapter();
         StoreAdapter noFrills = new NoFrillsAdapter();
 
+        // Search for products across all stores
+
         ProductSearchService searchService = new ProductSearchService(List.of(longos, walmart, noFrills));
 
         List<Product> results = searchService.search("Milk");
@@ -68,10 +72,12 @@ public class Main {
 
         System.out.println("Total results: " + results.size());
 
+        // Price comparison for the search results
 
         PriceComparisonService comparisonService = new PriceComparisonService();
 
         List<Product> sorted = comparisonService.comparePrices(results);
+
 
         System.out.println("===Price Comparison===");
         for (Product product : sorted) {
@@ -82,6 +88,36 @@ public class Main {
             product.getUnitPrice() + "/" +
             product.getUnit()
             );
+        }
+
+        // Price Promotion
+        PromotionService promotionService = new PromotionService();
+
+        List<Product> resultsPromotion = searchService.search("Milk");
+
+        int quantity = 2;
+        boolean hasMembership = true;
+        LocalDate today = LocalDate.now();
+
+        System.out.println("=== Promotion Detection ===");
+
+        for (Product product : resultsPromotion) {
+            double regularTotal = product.getPrice() * quantity;
+
+            String status = promotionService.checkPromotions(product, quantity, hasMembership, today);
+
+            double discount = promotionService.calculateDiscount(product, quantity, hasMembership, today);
+
+            double finalTotal = promotionService.getDiscountedTotal(product, quantity, hasMembership, today);
+
+            System.out.println("------------------------");
+            System.out.println(product.getName());
+            System.out.println("Store: " + product.getStore());
+            System.out.printf("Regular total: $%.2f%n", regularTotal);
+            System.out.println("Promotion status: " + status);
+            System.out.printf("Discount: $%.2f%n", discount);
+            System.out.printf("Final total: $%.2f%n", finalTotal);
+
         }
         
     }

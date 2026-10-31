@@ -9,6 +9,7 @@ public class Product {
     private double price;
     private double size;
     private String unit;
+    private Promotion promotion;
 
     public Product(String prodId, String name, String brand, String category, String store, double price, double size, String unit) {
         this.prodId = prodId;
@@ -19,6 +20,19 @@ public class Product {
         this.price = price;
         this.size = size;
         this.unit = unit;
+        this.promotion = null;
+    }
+
+    public Product(String prodId, String name, String brand, String category, String store, double price, double size, String unit, Promotion promotion) {
+        this.prodId = prodId;
+        this.name = name;
+        this.brand = brand;
+        this.category = category;
+        this.store = store;
+        this.price = price;
+        this.size = size;
+        this.unit = unit;
+        this.promotion = promotion;
     }
 
     public double getUnitPrice() {
@@ -59,6 +73,20 @@ public class Product {
     public String getUnit() {
         return unit;
     }
+
+    // Promotion
+    public Promotion getPromotion() {
+        return promotion;
+    }
+
+    public void setPromotion(Promotion promotion) {
+        this.promotion = promotion;
+    }
+
+    public boolean hasPromotion(){
+        return promotion != null;
+    }
+
 
     @Override 
     public String toString() {
