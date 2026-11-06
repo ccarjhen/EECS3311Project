@@ -12,6 +12,7 @@ import grocery.model.Product;
 import grocery.model.ShoppingItem;
 import grocery.model.ShoppingPlan;
 import grocery.model.UserPreferences;
+import grocery.service.PriceComparisonService;
 import grocery.service.ProductSearchService;
 import grocery.service.PromotionService;
 import grocery.strategy.CheapestStrat;
@@ -54,25 +55,43 @@ public class Main {
         System.out.println("\n=== Test 2 (F06 Price Comparison) ===");
 
          // Compare matching products with the same units
-        List<Product> comparableMilk = milkResults.stream()
-            .filter(p -> p.getUnit().equalsIgnoreCase("L"))
-            .filter(p -> p.getSize() > 0)
-            .toList();
+        // List<Product> comparableMilk = milkResults.stream()
+        //     .filter(p -> p.getUnit().equalsIgnoreCase("L"))
+        //     .filter(p -> p.getSize() > 0)
+        //     .toList();
 
-        comparableMilk.stream()
-            .sorted((a, b) -> Double.compare(
-                a.getPrice() / a.getSize(),
-                b.getPrice() / b.getSize()
-            ))
-            .forEach(product -> {
-                System.out.printf(
-                    "%s | %s | $%.2f | $%.2f/L%n",
-                    product.getName(),
-                    product.getStore(),
-                    product.getPrice(),
-                    product.getPrice() / product.getSize()
-                );
-            });
+        // comparableMilk.stream()
+        //     .sorted((a, b) -> Double.compare(
+        //         a.getPrice() / a.getSize(),
+        //         b.getPrice() / b.getSize()
+        //     ))
+        //     .forEach(product -> {
+        //         System.out.printf(
+        //             "%s | %s | $%.2f | $%.2f/L%n",
+        //             product.getName(),
+        //             product.getStore(),
+        //             product.getPrice(),
+        //             product.getPrice() / product.getSize()
+        //         );
+        //     });
+
+        PriceComparisonService comparison = new PriceComparisonService();
+        // Use Walmart's 2% milk as the reference product.
+        Product reference = milkResults.stream()
+            .filter(p -> p.getName().equalsIgnoreCase("2% Milk"))
+            .findFirst()
+            .orElseThrow();
+
+        List<Product> ranked = comparison.comparePrices(reference, milkResults);
+
+        for (Product product : ranked) {
+            System.out.printf(
+                "%s | %s | $%.2f per standard unit%n",
+                product.getName(),
+                product.getStore(),
+                comparison.getNormalizedUnitPrice(product)
+            );
+        }
 
         // Test 3 (F07 Promotions)
         System.out.println("\n=== Test 3 (F07 Promotions) ===");

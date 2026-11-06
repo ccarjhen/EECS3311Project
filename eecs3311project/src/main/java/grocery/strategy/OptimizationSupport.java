@@ -3,13 +3,18 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import grocery.model.Product;
 import grocery.model.ShoppingItem;
 import grocery.model.ShoppingPlan;
+import grocery.model.UserPreferences;
 import grocery.service.ProductSearchService;
 import grocery.service.PromotionService;
+
+
+
 
 
 class OptimizationSupport {
@@ -18,13 +23,34 @@ class OptimizationSupport {
     private final PromotionService promotionService;
     private final boolean hasMembership;
     private final LocalDate date;
+    private final UserPreferences userPreferences;
 
-
-    OptimizationSupport(ProductSearchService searchService, PromotionService promotionService, boolean hasMembership, LocalDate date) {
+    OptimizationSupport(ProductSearchService searchService, PromotionService promotionService, boolean hasMembership, LocalDate date, UserPreferences preferences) {
         this.searchService = searchService;
         this.promotionService = promotionService;
         this.hasMembership = hasMembership;
         this.date = date;
+        this.userPreferences = preferences;
+    }
+
+    private boolean isExcluded(Product product) {
+        if(userPreferences == null) {
+            return false;
+        }
+
+        String productName = product.getName().toLowerCase(Locale.ROOT);
+        
+        for (String exclusion : userPreferences.getExcludedItems()) {
+
+            String excluded = exclusion.trim()
+                    .toLowerCase(Locale.ROOT);
+
+            if (!excluded.isEmpty() && productName.contains(excluded)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     List<Product> findOptions(ShoppingItem item, Set<String> stores){
@@ -34,11 +60,17 @@ class OptimizationSupport {
             if (stores != null && !stores.contains(product.getStore())){
                 continue;
             }
-            
+
             // Initial compatibility rule: same requested category
             if(!product.getCategory().equalsIgnoreCase(item.getCategory())){
                 continue;
             }
+
+            // Exclusion rule based on user preferences
+            if (isExcluded(product)) {
+                continue;
+            }
+            
             result.add(product);
         }
 
@@ -92,4 +124,6 @@ class OptimizationSupport {
 
         return total;
     }
+
+   
 }
