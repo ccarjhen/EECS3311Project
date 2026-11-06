@@ -26,6 +26,11 @@ public class UserPreferences {
         allergies.add(allergy);
     }
 
+
+    public Set<String> getExcludedItems() {
+        return Set.copyOf(excludedItems);
+    }
+
     public void addExcludedItem(String item) {
         excludedItems.add(item);
     }

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.Set;
 
 import grocery.model.ShoppingPlan;
+import grocery.model.UserPreferences;
 import grocery.service.ProductSearchService;
 import grocery.service.PromotionService;
 
@@ -16,10 +17,11 @@ public class OneStoreStrat implements OptimizationStrat {
                          PromotionService promotionService,
                          boolean hasMembership,
                          LocalDate date,
-                         String selectedStore) {
+                         String selectedStore,
+                         UserPreferences preferences) {
 
         this.support = new OptimizationSupport(
-            searchService, promotionService, hasMembership, date
+            searchService, promotionService, hasMembership, date, preferences
         );
         this.selectedStore = selectedStore;
     }

@@ -1,13 +1,15 @@
 package grocery.model;
-import java.util.List;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.ArrayList;
+
+import grocery.observer.PlanObserver;
 
 public class ShoppingPlan {
     private String name;
     private double estimatedBudget;
     private List<ShoppingItem> shoppingItems;
+    private List<PlanObserver> observers = new ArrayList<>();
 
     public ShoppingPlan(String name, double estimatedBudget) {
         this.name = name;
@@ -20,6 +22,7 @@ public class ShoppingPlan {
             throw new IllegalArgumentException("Item cannot be null");
         }
         shoppingItems.add(item);
+        notifyObservers();
     }
 
     public void removeItem(ShoppingItem item) {
@@ -27,6 +30,7 @@ public class ShoppingPlan {
             throw new IllegalArgumentException("Item cannot be null");
         }
         shoppingItems.remove(item);
+        notifyObservers();
     }
 
     public double calculateTotal() {
@@ -53,4 +57,44 @@ public class ShoppingPlan {
     public List<ShoppingItem> getShoppingItems() {
         return Collections.unmodifiableList(shoppingItems);
     }
-}
+
+    // Observer methods
+    public void addObserver(PlanObserver observer) {
+        if (observer != null && !observers.contains(observer)) {
+            observers.add(observer);
+        }
+    }
+
+    public void removeObserver(PlanObserver observer) {
+        observers.remove(observer);
+    }
+
+    private void notifyObservers() {
+        for (PlanObserver observer : List.copyOf(observers)) {
+            observer.onPlanChanged(this);
+        }
+    }
+
+    public void markItemPurchased(ShoppingItem item) {
+
+        if (!shoppingItems.contains(item)) {
+            throw new IllegalArgumentException(
+                "Item does not belong to this plan"
+            );
+        }
+
+        item.checkPurchased();
+        notifyObservers();
+    }
+
+    public void changeItemQuantity(ShoppingItem item, int quantity) {
+        if (!shoppingItems.contains(item)) {
+            throw new IllegalArgumentException(
+                "Item does not belong to this plan"
+            );
+        }
+
+        item.setQuantity(quantity);
+        notifyObservers();
+    }
+}   

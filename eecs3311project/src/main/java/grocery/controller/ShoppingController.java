@@ -2,6 +2,7 @@ package grocery.controller;
 
 import java.util.List;
 
+import grocery.command.ChecklistCommand;
 import grocery.model.Product;
 import grocery.model.ShoppingPlan;
 import grocery.service.ProductSearchService;
@@ -40,4 +41,11 @@ public class ShoppingController {
         return optimizationStrategy.optimize(plan);
     }
 
+    public void updateChecklist(ChecklistCommand command) {
+
+        if(command == null){
+            throw new IllegalArgumentException("Checklist command cannot be null");
+        }
+        command.execute();
+    }
 }

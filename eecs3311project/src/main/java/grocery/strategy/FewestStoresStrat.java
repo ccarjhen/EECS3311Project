@@ -10,6 +10,7 @@ import java.util.Set;
 import grocery.model.Product;
 import grocery.model.ShoppingItem;
 import grocery.model.ShoppingPlan;
+import grocery.model.UserPreferences;
 import grocery.service.ProductSearchService;
 import grocery.service.PromotionService;
 
@@ -21,11 +22,12 @@ public class FewestStoresStrat implements OptimizationStrat {
     public FewestStoresStrat(ProductSearchService searchService,
                             PromotionService promotionService,
                             boolean hasMembership,
-                            LocalDate date) {
+                            LocalDate date,
+                            UserPreferences preferences) {
 
         this.searchService = searchService;
         this.support = new OptimizationSupport(
-            searchService, promotionService, hasMembership, date
+            searchService, promotionService, hasMembership, date, preferences
         );
     }
 

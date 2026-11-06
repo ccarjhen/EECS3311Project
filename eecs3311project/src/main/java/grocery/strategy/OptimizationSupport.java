@@ -12,10 +12,7 @@ import grocery.model.ShoppingPlan;
 import grocery.model.UserPreferences;
 import grocery.service.ProductSearchService;
 import grocery.service.PromotionService;
-
-
-
-
+import grocery.service.ShoppingPlanPricingService;
 
 class OptimizationSupport {
 
@@ -24,6 +21,7 @@ class OptimizationSupport {
     private final boolean hasMembership;
     private final LocalDate date;
     private final UserPreferences userPreferences;
+    private final ShoppingPlanPricingService pricingService;
 
     OptimizationSupport(ProductSearchService searchService, PromotionService promotionService, boolean hasMembership, LocalDate date, UserPreferences preferences) {
         this.searchService = searchService;
@@ -31,6 +29,7 @@ class OptimizationSupport {
         this.hasMembership = hasMembership;
         this.date = date;
         this.userPreferences = preferences;
+        this.pricingService = new ShoppingPlanPricingService(promotionService);
     }
 
     private boolean isExcluded(Product product) {
@@ -70,7 +69,7 @@ class OptimizationSupport {
             if (isExcluded(product)) {
                 continue;
             }
-            
+
             result.add(product);
         }
 
@@ -116,13 +115,7 @@ class OptimizationSupport {
     }
 
     double effectiveTotal(ShoppingPlan plan) {
-        double total = 0;
-
-        for (ShoppingItem item : plan.getShoppingItems()) {
-            total += cost(item.getProduct(), item.getQuantity());
-        }
-
-        return total;
+        return pricingService.calculatePlanTotal(plan, hasMembership, date);
     }
 
    

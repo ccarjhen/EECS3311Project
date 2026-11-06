@@ -3,6 +3,7 @@ package grocery.strategy;
 import java.time.LocalDate;
 
 import grocery.model.ShoppingPlan;
+import grocery.model.UserPreferences;
 import grocery.service.ProductSearchService;
 import grocery.service.PromotionService;
 
@@ -13,9 +14,10 @@ public class CheapestStrat implements OptimizationStrat {
   public CheapestStrat(ProductSearchService searchService,
     PromotionService promotionService,
     boolean hasMembership,
-    LocalDate date
+    LocalDate date,
+    UserPreferences preferences
   ) {
-    support = new OptimizationSupport(searchService, promotionService, hasMembership, date);
+    support = new OptimizationSupport(searchService, promotionService, hasMembership, date, preferences);
   }
 
   @Override
