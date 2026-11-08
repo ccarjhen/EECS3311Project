@@ -38,14 +38,26 @@ public class ClaudeClient implements LLMClient {
     @Override
     public String ask(String prompt) throws Exception {
 
+
         JsonNode payload = mapper.createObjectNode()
             .put("model", model)
-            .put("max_tokens", 1500)
+            .put("max_tokens", 3000)
             .set("messages", mapper.createArrayNode().add(
                 mapper.createObjectNode()
                     .put("role", "user")
                     .put("content", prompt)
             ));
+
+
+        JsonNode webSearchTool = mapper.createObjectNode()
+            .put("type", "web_search_20250305")
+            .put("name", "web_search")
+            .put("max_uses", 3);
+
+
+        ((com.fasterxml.jackson.databind.node.ObjectNode) payload)
+            .set("tools", mapper.createArrayNode()
+                .add(webSearchTool));
 
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(API_URL))
