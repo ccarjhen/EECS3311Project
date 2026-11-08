@@ -17,6 +17,9 @@ import org.junit.jupiter.api.Test;
 import grocery.adapter.LongosAdapter;
 import grocery.adapter.NoFrillsAdapter;
 import grocery.adapter.WalmartAdapter;
+import grocery.agent.LLMClient;
+import grocery.agent.ShoppingAgent;
+import grocery.agent.ShoppingRequest;
 import grocery.command.AddItemCommand;
 import grocery.command.ChangeQuantityCommand;
 import grocery.command.MarkPurchasedCommand;
@@ -637,6 +640,62 @@ public class AppTest {
 
         plan.removeObserver(observer);
     }
+
+    // ========================================
+    // 
+    // ========================================
+
+    @Test
+    public void testShoppingAgentCreatesPlan() throws Exception {
+
+        // Fake LLM used only for automated testing
+        LLMClient fakeLLM = prompt -> """
+            {
+            "items": [
+                {
+                "name": "Milk",
+                "category": "Dairy",
+                "quantity": 2
+                },
+                {
+                "name": "Bread",
+                "category": "Bakery",
+                "quantity": 1
+                },
+                {
+                "name": "Eggs",
+                "category": "Dairy",
+                "quantity": 1
+                }
+            ]
+            }
+            """;
+
+        ShoppingAgent agent = new ShoppingAgent(
+            fakeLLM,
+            searchService,
+            promotionService
+        );
+
+        ShoppingRequest request = new ShoppingRequest(
+            "I need milk, bread and eggs",
+            40.00
+        );
+
+        ShoppingPlan result = agent.createPlan(
+            request,
+            false,
+            LocalDate.of(2026, 10, 31)
+        );
+
+        assertEquals(3, result.getShoppingItems().size());
+
+        for (ShoppingItem item : result.getShoppingItems()) {
+            assertNotNull(item.getProduct());
+            assertTrue(item.getQuantity() > 0);
+        }
+    }
+
 
 
     // ========================================
