@@ -8,9 +8,12 @@ import java.util.Scanner;
 import grocery.adapter.LongosAdapter;
 import grocery.adapter.NoFrillsAdapter;
 import grocery.adapter.WalmartAdapter;
+import grocery.adapter.WebStoreAdapter;
 import grocery.agent.ClaudeClient;
+import grocery.agent.RequestedItem;
 import grocery.agent.ShoppingAgent;
 import grocery.agent.ShoppingRequest;
+import grocery.agent.WebPlanResult;
 import grocery.command.AddItemCommand;
 import grocery.command.ChangeQuantityCommand;
 import grocery.command.MarkPurchasedCommand;
@@ -20,14 +23,18 @@ import grocery.model.Product;
 import grocery.model.ShoppingItem;
 import grocery.model.ShoppingPlan;
 import grocery.model.UserPreferences;
+import grocery.model.WebProductListing;
 import grocery.service.PriceComparisonService;
 import grocery.service.ProductSearchService;
 import grocery.service.PromotionService;
 import grocery.service.ShoppingPlanPricingService;
+import grocery.service.WebListingExtractor;
+import grocery.service.WebProductSearchService;
 import grocery.strategy.CheapestStrat;
 import grocery.strategy.FewestStoresStrat;
 import grocery.strategy.OneStoreStrat;
 import grocery.strategy.OptimizationStrat;
+import grocery.util.StoreNameNormalizer;
 
 public class ShoppingCLI {
 
@@ -40,9 +47,24 @@ public class ShoppingCLI {
     private final ShoppingController controller;
     private final UserPreferences preferences;
 
+    private ProductSearchService activeSearchService;   
+
     private ShoppingAgent agent;
     private ShoppingPlan currentPlan;
     private boolean hasMembership = false;
+
+    private WebProductSearchService webSearchService;
+    private WebListingExtractor webListingExtractor;
+
+    
+
+    // Retain web-search information for later viewing.
+    private WebPlanResult currentWebResult;
+
+    // Track which type of plan is active.
+    private boolean usingWebPlan = false;
+
+    
 
     // ========================================
     // CONSTRUCTOR
@@ -67,11 +89,8 @@ public class ShoppingCLI {
 
         preferences = new UserPreferences();
 
-        // agent = new ShoppingAgent(
-        //     new ClaudeClient(),
-        //     searchService,
-        //     promotionService
-        // );
+        activeSearchService = searchService;
+
     }
 
     // ========================================
@@ -109,6 +128,10 @@ public class ShoppingCLI {
                     case 5 -> viewPromotions();
                     case 6 -> optimizePlan();
                     case 7 -> manageChecklist();
+                    case 8 -> {
+                        showWebCandidates();
+                        showWebWarnings();
+                    }
                     case 0 -> {
                         running = false;
                         System.out.println("Goodbye!");
@@ -138,6 +161,7 @@ public class ShoppingCLI {
             5. View Promotions
             6. Optimize Shopping Plan
             7. Manage Checklist
+            8. View Web Product Alternatives
             0. Exit
             ====================================
             """);
@@ -147,16 +171,27 @@ public class ShoppingCLI {
     // F01-F04: AI PLAN GENERATION
     // ========================================
 
+   
     private void generateAIPlan() throws Exception {
-        if (agent == null) {
-            agent = new ShoppingAgent(
-                new ClaudeClient(),
-                searchService,
-                promotionService
-            );
+
+        System.out.println("""
+            
+            === GENERATE SHOPPING PLAN ===
+            1. AI Planning with Web Search
+            2. AI Planning with Sample Catalogue
+            0. Back
+            """);
+
+        int mode = readInt("Choose mode: ");
+
+        if (mode == 0) {
+            return;
         }
 
-        System.out.println("\n=== AI SHOPPING PLAN ===");
+        if (mode != 1 && mode != 2) {
+            System.out.println("Invalid mode.");
+            return;
+        }
 
         String prompt = readText(
             "Describe your shopping goal: "
@@ -169,28 +204,232 @@ public class ShoppingCLI {
             return;
         }
 
-        String member = readText(
-            "Do you have applicable loyalty memberships? (y/n): "
-        );
-
-        hasMembership = member.equalsIgnoreCase("y");
-
         ShoppingRequest request =
             new ShoppingRequest(prompt, budget);
 
-        System.out.println("\nGenerating shopping plan...");
+        // Initialize Claude only when needed.
+        if (agent == null) {
+            ClaudeClient claude = new ClaudeClient();
 
-        ShoppingPlan generated = agent.createPlan(
+            agent = new ShoppingAgent(
+                claude,
+                searchService,
+                promotionService
+            );
+
+            webSearchService =
+                new WebProductSearchService(claude);
+
+            webListingExtractor =
+                new WebListingExtractor(claude);
+        }
+
+        if (mode == 1) {
+            generateWebPlan(request);
+        } else {
+            generateSamplePlan(request);
+        }
+    }
+
+
+    private void generateWebPlan(
+            ShoppingRequest request) throws Exception {
+
+        System.out.println("\n=== WEB SHOPPING MODE ===");
+
+        String answer = readText(
+            "Use online listed prices as estimates? (y/n): "
+        );
+
+        boolean useEstimates =
+            answer.equalsIgnoreCase("y");
+
+        String membership = readText(
+            "Do you have applicable loyalty memberships? (y/n): "
+        );
+
+        boolean selectedMembership =
+            membership.equalsIgnoreCase("y");
+
+        System.out.println(
+            "\nGenerating AI web shopping plan..."
+        );
+
+        // Keep earlier plan intact if generation fails.
+        WebPlanResult result = agent.createWebPlan(
             request,
-            hasMembership,
+            webSearchService,
+            webListingExtractor,
+            useEstimates,
+            selectedMembership,
             LocalDate.now()
         );
 
-        setCurrentPlan(generated);
 
-        System.out.println("\nShopping plan generated!");
+        // One fresh catalogue per web plan; do not add the same listings twice.
+        WebStoreAdapter adapter = new WebStoreAdapter();
+        for (WebProductListing listing : result.approvedListings()) {
+            // Normalize store names before optimization so that, for example,
+            // "No Frills Canada" and "No Frills" are treated as one store.
+            WebProductListing normalized = new WebProductListing(
+                listing.name(),
+                listing.brand(),
+                listing.category(),
+                StoreNameNormalizer.normalize(listing.store()),
+                listing.price(),
+                listing.size(),
+                listing.unit(),
+                listing.sourceUrl()
+            );
+            adapter.addApprovedListing(normalized);
+        }
+
+        // Switch to the new catalogue only after plan generation succeeds.
+        activeSearchService = new ProductSearchService(List.of(adapter));
+        currentWebResult = result;
+        usingWebPlan = true;
+        hasMembership = selectedMembership;
+        setCurrentPlan(result.plan());
+
+        System.out.println("\nWeb shopping plan generated.");
+
+        viewShoppingPlan();
+        showWebCandidates();
+        showWebWarnings();
+    }
+
+
+    private void generateSamplePlan(
+            ShoppingRequest request) throws Exception {
+
+        System.out.println("\n=== SAMPLE CATALOGUE MODE ===");
+
+        String membership = readText(
+            "Do you have applicable loyalty memberships? (y/n): "
+        );
+
+        boolean selectedMembership =
+            membership.equalsIgnoreCase("y");
+
+        System.out.println("\nGenerating shopping plan...");
+
+        ShoppingPlan result = agent.createPlan(
+            request,
+            selectedMembership,
+            LocalDate.now()
+        );
+
+        activeSearchService = searchService;
+        currentWebResult = null;
+        usingWebPlan = false;
+        hasMembership = selectedMembership;
+
+        setCurrentPlan(result);
+
+        System.out.println("\nSample shopping plan generated.");
+        System.out.println(
+            "Note: Product prices come from the sample catalogues."
+        );
+
         viewShoppingPlan();
     }
+
+
+    private void showWebCandidates() {
+
+        if (currentWebResult == null) {
+            System.out.println(
+                "No web search results available."
+            );
+            return;
+        }
+
+        System.out.println("\n=== WEB PRODUCT CANDIDATES ===");
+
+        currentWebResult.candidatesByItem()
+            .forEach((itemName, candidates) -> {
+
+                System.out.println("\n" + itemName + ":");
+
+                if (candidates.isEmpty()) {
+                    System.out.println(
+                        "  No suitable listings found."
+                    );
+                    return;
+                }
+
+                for (int i = 0; i < candidates.size(); i++) {
+
+                    WebProductListing product =
+                        candidates.get(i);
+
+                    System.out.printf(
+                        "%d. %s | %s | $%.2f CAD%n",
+                        i + 1,
+                        product.name(),
+                        product.store(),
+                        product.price()
+                    );
+
+                    System.out.printf(
+                        "   Brand: %s | Size: %.2f %s%n",
+                        product.brand(),
+                        product.size(),
+                        product.unit()
+                    );
+
+                    System.out.println(
+                        "   Source: " + product.sourceUrl()
+                    );
+                }
+            });
+    }
+
+
+    private void showWebWarnings() {
+
+        if (currentWebResult == null) {
+            return;
+        }
+
+        if (!currentWebResult.unresolvedItems().isEmpty()) {
+
+            System.out.println("\n=== UNRESOLVED ITEMS ===");
+
+            for (RequestedItem item :
+                    currentWebResult.unresolvedItems()) {
+
+                System.out.println("- " + item.name());
+            }
+        }
+
+        if (!currentWebResult.warnings().isEmpty()) {
+
+            System.out.println("\n=== WARNINGS ===");
+
+            for (String warning :
+                    currentWebResult.warnings()) {
+
+                System.out.println("- " + warning);
+            }
+        }
+
+        System.out.println(
+            "\nShopping plan complete: " +
+            currentWebResult.isComplete()
+        );
+
+        System.out.println(
+            "Price status: " +
+            (currentWebResult.estimatedPricesUsed()
+                ? "Estimated web-listed prices"
+                : "Web prices not authorized for optimization")
+        );
+    }
+
+
+
+
 
     // ========================================
     // F03: VIEW SHOPPING PLAN
@@ -200,6 +439,23 @@ public class ShoppingCLI {
 
         if (!hasPlan()) {
             return;
+        }
+
+        if (usingWebPlan) {
+            System.out.println(
+                "Price source: Web listings (estimates, not verified)"
+            );
+
+            if (currentWebResult != null &&
+                    !currentWebResult.isComplete()) {
+                System.out.println(
+                    "WARNING: This is a partial shopping plan."
+                );
+            }
+        } else {
+            System.out.println(
+                "Price source: Sample catalogue"
+            );
         }
 
         System.out.println("\n=== CURRENT SHOPPING PLAN ===");
@@ -249,6 +505,10 @@ public class ShoppingCLI {
             .allMatch(i -> i.getProduct() != null);
 
         if (complete) {
+            if (usingWebPlan && currentWebResult != null
+                    && !currentWebResult.isComplete()) {
+                System.out.println("WARNING: Total excludes unresolved shopping items.");
+            }
             double total = pricingService.calculatePlanTotal(
                 currentPlan,
                 hasMembership,
@@ -256,7 +516,9 @@ public class ShoppingCLI {
             );
 
             System.out.printf(
-                "Estimated total after discounts: $%.2f%n",
+                usingWebPlan
+                    ? "Estimated total (web-listed prices): $%.2f%n"
+                    : "Estimated total after discounts: $%.2f%n",
                 total
             );
 
@@ -279,10 +541,13 @@ public class ShoppingCLI {
     private void searchProducts() {
 
         System.out.println("\n=== PRODUCT SEARCH ===");
+        System.out.println(usingWebPlan
+            ? "Searching products retrieved for the current web plan."
+            : "Searching sample catalogue products.");
 
         String query = readText("Search product: ");
 
-        List<Product> results = controller.search(query);
+        List<Product> results = activeSearchService.search(query);
 
         if (results.isEmpty()) {
             System.out.println("No matching products found.");
@@ -299,12 +564,15 @@ public class ShoppingCLI {
     private void comparePrices() {
 
         System.out.println("\n=== PRICE COMPARISON ===");
+        System.out.println(usingWebPlan
+            ? "Comparing previously retrieved web estimates."
+            : "Comparing sample catalogue prices.");
 
         String query = readText(
             "Enter product name (e.g. 2% Milk): "
         );
 
-        List<Product> results = controller.search(query);
+        List<Product> results = activeSearchService.search(query);
 
         if (results.isEmpty()) {
             System.out.println("No products found.");
@@ -350,6 +618,9 @@ public class ShoppingCLI {
     private void viewPromotions() {
 
         System.out.println("\n=== PROMOTION SEARCH ===");
+        if (usingWebPlan) {
+            System.out.println("Online promotions have not been checked or verified.");
+        }
 
         String query = readText("Search product: ");
         int quantity = readInt("Quantity: ");
@@ -359,7 +630,7 @@ public class ShoppingCLI {
             return;
         }
 
-        List<Product> products = controller.search(query);
+        List<Product> products = activeSearchService.search(query);
 
         if (products.isEmpty()) {
             System.out.println("No products found.");
@@ -388,100 +659,157 @@ public class ShoppingCLI {
                 product.getStore()
             );
 
-            System.out.println("Promotion: " + status);
-            System.out.printf("Total: $%.2f%n%n", total);
+            if (usingWebPlan) {
+                System.out.println("Promotion: Not verified online");
+                System.out.printf("Estimated total before verified discounts: $%.2f%n%n",
+                    product.getPrice() * quantity);
+            } else {
+                System.out.println("Promotion: " + status);
+                System.out.printf("Total: $%.2f%n%n", total);
+            }
         }
+
+        
     }
 
     // ========================================
     // F09: SHOPPING OPTIMIZATION
     // ========================================
 
+    
     private void optimizePlan() {
 
         if (!hasPlan()) {
+            System.out.println(
+                "Please generate a shopping plan first."
+            );
             return;
         }
 
-        System.out.println("""
-            
-            === OPTIMIZATION STRATEGIES ===
-            1. Cheapest
-            2. Fewest Stores
-            3. One Store
-            """);
+        ShoppingPlan originalPlan = currentPlan;
+
+        System.out.println(
+            "\n=== OPTIMIZATION STRATEGIES ==="
+        );
+
+        System.out.println("1. Cheapest");
+        System.out.println("2. Fewest Stores");
+        System.out.println("3. One Store");
 
         int choice = readInt("Choose strategy: ");
+
+        if (choice < 1 || choice > 3) {
+            System.out.println("Invalid strategy.");
+            return;
+        }
 
         OptimizationStrat strategy;
 
         switch (choice) {
 
-            case 1 -> strategy = new CheapestStrat(
-                searchService,
-                promotionService,
-                hasMembership,
-                LocalDate.now(),
-                preferences
-            );
-
-            case 2 -> strategy = new FewestStoresStrat(
-                searchService,
-                promotionService,
-                hasMembership,
-                LocalDate.now(),
-                preferences
-            );
-
-            case 3 -> {
-
-                System.out.println("""
-                    1. Longos
-                    2. Walmart
-                    3. No Frills
-                    """);
-
-                int storeChoice = readInt("Choose store: ");
-
-                String store = switch (storeChoice) {
-                    case 1 -> "Longos";
-                    case 2 -> "Walmart";
-                    case 3 -> "No Frills";
-                    default -> null;
-                };
-
-                if (store == null) {
-                    System.out.println("Invalid store.");
-                    return;
-                }
-
-                strategy = new OneStoreStrat(
-                    searchService,
+            case 1 -> {
+                strategy = new CheapestStrat(
+                    activeSearchService,
                     promotionService,
                     hasMembership,
                     LocalDate.now(),
-                    store,
+                    preferences
+                );
+            }
+
+            case 2 -> {
+                strategy = new FewestStoresStrat(
+                    activeSearchService,
+                    promotionService,
+                    hasMembership,
+                    LocalDate.now(),
+                    preferences
+                );
+            }
+
+            case 3 -> {
+
+                List<String> stores = getAvailableStores();
+
+                if (stores.isEmpty()) {
+                    System.out.println(
+                        "No retailers are available."
+                    );
+                    return;
+                }
+
+                System.out.println(
+                    "\n=== AVAILABLE STORES ==="
+                );
+
+                for (int i = 0; i < stores.size(); i++) {
+                    System.out.printf(
+                        "%d. %s%n",
+                        i + 1,
+                        stores.get(i)
+                    );
+                }
+
+                int storeChoice =
+                    readInt("Choose store: ");
+
+                if (storeChoice < 1 ||
+                        storeChoice > stores.size()) {
+                    System.out.println(
+                        "Invalid store selection."
+                    );
+                    return;
+                }
+
+                String selectedStore =
+                    stores.get(storeChoice - 1);
+
+               strategy = new OneStoreStrat(
+                    activeSearchService,
+                    promotionService,
+                    hasMembership,
+                    LocalDate.now(),
+                    selectedStore,
                     preferences
                 );
             }
 
             default -> {
-                System.out.println("Invalid strategy.");
                 return;
             }
         }
 
-        // Execute through ShoppingController
-        controller.setOptimizationStrategy(strategy);
+        try {
 
-        // Assign products again based on selected strategy
-        ShoppingPlan result = controller.optimize(currentPlan);
+            // Create an optimized plan without overwriting
+            // the current plan before success.
+            ShoppingPlan optimized =
+                strategy.optimize(originalPlan);
 
-        setCurrentPlan(result);
+            // OptimizationSupport.buildPlan already copies purchased flags.
+            // Other strategy implementations should do the same.
 
-        System.out.println("\nOptimization complete.");
-        viewShoppingPlan();
+            setCurrentPlan(optimized);
+
+            System.out.println(
+                "\nShopping plan optimized successfully!"
+            );
+
+            viewShoppingPlan();
+
+        } catch (IllegalStateException ex) {
+
+            System.out.println(
+                "\nOptimization could not complete: " +
+                ex.getMessage()
+            );
+
+            System.out.println(
+                "Your previous shopping plan was preserved."
+            );
+        }
     }
+
 
     // ========================================
     // F10: INTERACTIVE CHECKLIST
@@ -529,11 +857,18 @@ public class ShoppingCLI {
             ShoppingItem item =
                 new ShoppingItem(name, category, quantity);
 
-            List<Product> products = controller.search(name);
+            List<Product> products = activeSearchService.search(name);
 
-            // Basic first-match selection for CLI
-            if (!products.isEmpty()) {
-                item.setProduct(products.get(0));
+            // Only assign a product with a matching category.
+            // Do not silently substitute data from the sample catalogue.
+            products.stream()
+                .filter(p -> p.getCategory().equalsIgnoreCase(category))
+                .findFirst()
+                .ifPresent(item::setProduct);
+
+            if (item.getProduct() == null) {
+                System.out.println("No matching product in the active catalogue. "
+                    + "The item will be added without a price.");
             }
 
             controller.updateChecklist(
@@ -668,4 +1003,22 @@ public class ShoppingCLI {
             }
         }
     }
+
+
+    private List<String> getAvailableStores() {
+
+        if (usingWebPlan && currentWebResult != null) {
+
+            return currentWebResult.approvedListings()
+                .stream()
+                .map(WebProductListing::store)
+                .map(StoreNameNormalizer::normalize)
+                .distinct()
+                .sorted()
+                .toList();
+        }
+
+        return List.of("Longos", "Walmart", "No Frills");
+    }
+
 }

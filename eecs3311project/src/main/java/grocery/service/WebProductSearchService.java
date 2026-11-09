@@ -27,35 +27,34 @@ public class WebProductSearchService {
             );
         }
 
+        
         String prompt = """
-            Search the web for the grocery product below.
+            Search the web for this grocery product:
 
             Product: %s
-
             Location: Ontario, Canada
 
-            Search these retailers:
+            Retailers:
             - Walmart Canada
             - No Frills Canada
 
-            For each product, report:
-            1. Product name
-            2. Brand
-            3. Retailer
-            4. Package size
-            5. Listed price in CAD, if supported by sources
-            6. Whether the price may require a store location
-            7. The source website
+            Find at most 3 relevant product listings in total.
 
-            Requirements:
-            - Actually use web search.
+            For each listing report:
+            - Product name and brand
+            - Retailer
+            - Package size
+            - Listed CAD price, if available
+            - Source URL
+
+            Rules:
             - Prefer retailer product pages.
-            - Do not invent prices or promotions.
-            - If the price cannot be established, say unavailable.
-            - Do not claim that a listed price is verified
-              for every store location.
-            - Keep results short and organized.
+            - Do not invent product information or prices.
+            - If a price is unavailable, say unavailable.
+            - Keep the entire response short.
+            - Do not include lengthy explanations.
             """.formatted(productName);
+
 
         JsonNode response = claudeClient.searchWeb(prompt);
 
