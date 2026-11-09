@@ -8,6 +8,7 @@ import java.time.Duration;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 
 
@@ -113,7 +114,83 @@ public class ClaudeClient implements LLMClient {
             );
         }
 
+        
+
         return answer.toString();
+    }
+
+
+    public JsonNode searchWeb(String prompt) throws Exception {
+
+        // 1. Create request JSON
+        ObjectNode payload = mapper.createObjectNode();
+
+        payload.put("model", model);
+        payload.put("max_tokens", 3000);
+
+        payload.set("messages",
+            mapper.createArrayNode().add(
+                mapper.createObjectNode()
+                    .put("role", "user")
+                    .put("content", prompt)
+            )
+        );
+
+        // 2. Enable Claude web search
+        ObjectNode webSearchTool = mapper.createObjectNode();
+
+        webSearchTool.put("type", "web_search_20250305");
+        webSearchTool.put("name", "web_search");
+        webSearchTool.put("max_uses", 3);
+
+        payload.set(
+            "tools",
+            mapper.createArrayNode().add(webSearchTool)
+        );
+
+        // 3. Send to Anthropic
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(API_URL))
+            .timeout(Duration.ofSeconds(120))
+            .header("Content-Type", "application/json")
+            .header("x-api-key", apiKey)
+            .header("anthropic-version", "2023-06-01")
+            .POST(HttpRequest.BodyPublishers.ofString(
+                mapper.writeValueAsString(payload)
+            ))
+            .build();
+
+        HttpResponse<String> response = client.send(
+            request,
+            HttpResponse.BodyHandlers.ofString()
+        );
+
+        if (response.statusCode() != 200) {
+            throw new IllegalStateException(
+                "Claude web search failed. HTTP " +
+                response.statusCode() + ": " +
+                response.body()
+            );
+        }
+
+        // 4. Return complete response, including citations
+        JsonNode result = mapper.readTree(response.body());
+
+        String stopReason = result.path("stop_reason").asText();
+
+        if ("max_tokens".equals(stopReason)) {
+            throw new IllegalStateException(
+                "Claude web search response was truncated"
+            );
+        }
+
+        if ("pause_turn".equals(stopReason)) {
+            throw new IllegalStateException(
+                "Claude web search paused before completion"
+            );
+        }
+
+        return result;
     }
 
 }
