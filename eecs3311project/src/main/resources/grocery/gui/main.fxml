@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="grocery.gui.MainController"
+            prefWidth="1200"
+            prefHeight="800"
+            styleClass="main-container">
+
+    <top>
+        <VBox spacing="25" styleClass="header">
+
+            <Label text="AI Grocery Companion"
+                   styleClass="app-title"/>
+
+            <HBox spacing="15"
+                  alignment="CENTER_LEFT">
+
+                <Button fx:id="homeButton"
+                        text="Home"
+                        onAction="#showHome"
+                        graphicTextGap="10"
+                        styleClass="nav-button">
+                    <graphic>
+                        <FontIcon iconLiteral="fth-home"
+                                  iconSize="20"/>
+                    </graphic>
+                </Button>
+
+                <Button fx:id="planButton"
+                        text="Shopping Plan"
+                        onAction="#showPlan"
+                        graphicTextGap="10"
+                        styleClass="nav-button">
+                    <graphic>
+                        <FontIcon iconLiteral="fth-shopping-cart"
+                                  iconSize="20"/>
+                    </graphic>
+                </Button>
+
+                <Button fx:id="productsButton"
+                        text="Products"
+                        onAction="#showProducts"
+                        graphicTextGap="10"
+                        styleClass="nav-button">
+                    <graphic>
+                        <FontIcon iconLiteral="fth-search"
+                                  iconSize="20"/>
+                    </graphic>
+                </Button>
+
+                <Button fx:id="preferencesButton"
+                        text="Preferences"
+                        onAction="#showPreferences"
+                        graphicTextGap="10"
+                        styleClass="nav-button">
+                    <graphic>
+                        <FontIcon iconLiteral="fth-sliders"
+                                  iconSize="20"/>
+                    </graphic>
+                </Button>
+
+                <Button fx:id="checklistsButton"
+                        text="Checklists"
+                        onAction="#showChecklists"
+                        graphicTextGap="10"
+                        styleClass="nav-button">
+                    <graphic>
+                        <FontIcon iconLiteral="fth-check-square"
+                                  iconSize="20"/>
+                    </graphic>
+                </Button>
+
+            </HBox>
+
+        </VBox>
+    </top>
+
+    <center>
+        <StackPane fx:id="contentArea"
+                   styleClass="content-area"/>
+    </center>
+
+</BorderPane>

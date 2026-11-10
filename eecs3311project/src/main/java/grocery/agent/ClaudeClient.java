@@ -126,7 +126,7 @@ public class ClaudeClient implements LLMClient {
         ObjectNode payload = mapper.createObjectNode();
 
         payload.put("model", model);
-        payload.put("max_tokens", 3000);
+        payload.put("max_tokens", 5000);
 
         payload.set("messages",
             mapper.createArrayNode().add(
@@ -141,7 +141,7 @@ public class ClaudeClient implements LLMClient {
 
         webSearchTool.put("type", "web_search_20250305");
         webSearchTool.put("name", "web_search");
-        webSearchTool.put("max_uses", 3);
+        webSearchTool.put("max_uses", 2);
 
         payload.set(
             "tools",

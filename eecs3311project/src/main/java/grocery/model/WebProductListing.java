@@ -1,6 +1,8 @@
 
 package grocery.model;
 
+// This record performs structural validation. It doesn't independently establish that the price is accurate.
+
 public record WebProductListing(
     String name,
     String brand,

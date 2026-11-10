@@ -29,30 +29,35 @@ public class WebProductSearchService {
 
         
         String prompt = """
-            Search the web for this grocery product:
+            Search online grocery product listings in Ontario, Canada.
 
             Product: %s
-            Location: Ontario, Canada
 
-            Retailers:
+            Search these retailers where relevant:
             - Walmart Canada
-            - No Frills Canada
+            - No Frills
+            - Longo's
+            - Real Canadian Superstore
+            - Food Basics
+            - Metro
+            - FreshCo
 
-            Find at most 3 relevant product listings in total.
+            Return at most 5 relevant product listings
+            across different retailers.
 
             For each listing report:
-            - Product name and brand
-            - Retailer
-            - Package size
-            - Listed CAD price, if available
+            - Product name
+            - Brand
+            - Store
+            - Package size and unit
+            - Listed price in CAD, if available
             - Source URL
 
-            Rules:
-            - Prefer retailer product pages.
-            - Do not invent product information or prices.
-            - If a price is unavailable, say unavailable.
-            - Keep the entire response short.
-            - Do not include lengthy explanations.
+            Do not invent product listings or prices.
+            Prefer retailer product pages.
+            Avoid duplicate listings.
+            If a retailer does not show a usable price,
+            report the price as unavailable.
             """.formatted(productName);
 
 

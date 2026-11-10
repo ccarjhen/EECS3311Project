@@ -7,6 +7,7 @@ import java.util.Locale;
 
 import grocery.model.Product;
 import grocery.model.WebProductListing;
+import grocery.util.StoreNameNormalizer;
 
 public class WebStoreAdapter implements StoreAdapter {
 
@@ -23,11 +24,12 @@ public class WebStoreAdapter implements StoreAdapter {
             listing.name(),
             listing.brand(),
             listing.category(),
-            listing.store(),
+            StoreNameNormalizer.normalize(listing.store()),
             listing.price(),
             listing.size(),
             listing.unit()
         );
+
 
         approvedProducts.add(product);
     }

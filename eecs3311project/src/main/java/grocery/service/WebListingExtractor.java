@@ -56,6 +56,13 @@ public class WebListingExtractor {
             - Avoid duplicate products from the same store.
             - Do not invent missing product details.
 
+            IMPORTANT OUTPUT RULES:
+            - Return a raw JSON object only.
+            - The first character must be {
+            - The last character must be }
+            - Do not wrap JSON in ```json or ```
+            - Do not include explanations before or after JSON.
+
             Allowed URLs:
             %s
 
@@ -67,7 +74,6 @@ public class WebListingExtractor {
                 searchResult.summary()
             );
 
-        
             String response = llm.ask(prompt);
 
             // Remove surrounding Markdown code fences

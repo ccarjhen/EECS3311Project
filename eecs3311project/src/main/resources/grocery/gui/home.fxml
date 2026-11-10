@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<ScrollPane xmlns:fx="http://javafx.com/fxml"
+            fitToWidth="true"
+            styleClass="page-scroll">
+
+    <content>
+        <VBox spacing="28" styleClass="page-content">
+
+            <Label text="What are you shopping for?"
+                   styleClass="section-title"/>
+
+            <VBox spacing="18"
+                  styleClass="request-card">
+
+                <Label text="Shopping Request"
+                       styleClass="field-label"/>
+
+                <TextArea fx:id="requestField"
+                          promptText="E.g. I need groceries for taco night for 4 people..."
+                          prefRowCount="5"
+                          wrapText="true"
+                          styleClass="request-input"/>
+
+                <HBox spacing="20"
+                      alignment="BOTTOM_LEFT">
+
+                    <VBox spacing="8">
+                        <Label text="Budget ($)"
+                               styleClass="field-label"/>
+
+                        <TextField fx:id="budgetField"
+                                   promptText="40.00"
+                                   prefWidth="180"/>
+                    </VBox>
+
+                    <Region HBox.hgrow="ALWAYS"/>
+
+                    <Button text="✨ Generate Plan"
+                            disable="true"
+                            styleClass="primary-button"/>
+
+                    <Button text="Load Sample Plan"
+                            disable="true"
+                            styleClass="primary-button"/>
+
+                </HBox>
+
+            </VBox>
+
+            <Label text="Recent Plans"
+                   styleClass="section-title"/>
+
+            <Label text="No saved plans yet."
+                   styleClass="muted-label"/>
+
+        </VBox>
+    </content>
+
+</ScrollPane>
