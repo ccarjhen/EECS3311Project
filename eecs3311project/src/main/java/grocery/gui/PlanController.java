@@ -2,12 +2,10 @@ package grocery.gui;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 
 import grocery.adapter.LongosAdapter;
 import grocery.adapter.NoFrillsAdapter;
@@ -16,6 +14,7 @@ import grocery.controller.ShoppingController;
 import grocery.model.Product;
 import grocery.model.ShoppingItem;
 import grocery.model.ShoppingPlan;
+import grocery.model.WebProductListing;
 import grocery.service.ProductSearchService;
 import grocery.service.PromotionService;
 import grocery.strategy.CheapestStrat;
@@ -358,91 +357,162 @@ public class PlanController {
         }
     }
 
+   
     @FXML
     private void findAlternative() {
 
-        // Get the selected item from the table.
-        ShoppingItem selectedItem =
+        ShoppingItem selected =
             itemsTable.getSelectionModel().getSelectedItem();
 
-        if (selectedItem == null) {
-            showError("Please select an item from the table first.");
+        if (selected == null || currentPlan == null) {
+            showError("Please select a shopping item first.");
             return;
         }
 
-        Product currentProduct = selectedItem.getProduct();
+        // Retrieve the cached products for this shopping item.
+        List<WebProductListing> candidates =
+            webCandidates.get(selected.getName());
 
-        // Search the existing store catalogues.
-        List<Product> alternatives = searchService.search(
-            selectedItem.getName()
-        ).stream()
-
-            // Keep only products in the same category.
-            .filter(product ->
-                product.getCategory() != null
-                && product.getCategory().equalsIgnoreCase(
-                    selectedItem.getCategory()
+        // Handle minor differences in item-name capitalization.
+        if (candidates == null) {
+            candidates = webCandidates.entrySet()
+                .stream()
+                .filter(entry ->
+                    entry.getKey().equalsIgnoreCase(
+                        selected.getName()
+                    )
                 )
-            )
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(List.of());
+        }
 
-            // Exclude the currently selected product.
-            .filter(product ->
-                currentProduct == null
-                || !Objects.equals(
-                    product.getProdId(),
-                    currentProduct.getProdId()
-                )
-                || !Objects.equals(
-                    product.getStore(),
-                    currentProduct.getStore()
-                )
-            )
-
-            // Sort alternatives from lowest to highest price.
-            .sorted(Comparator.comparingDouble(Product::getPrice))
-
-            .collect(Collectors.toList());
-
-        if (alternatives.isEmpty()) {
+        if (candidates.isEmpty()) {
             showError(
-                "No alternative products were found for "
-                + selectedItem.getName()
+                "No saved web alternatives found for "
+                + selected.getName()
             );
             return;
         }
 
-        // Let the shopper select an alternative.
-        ChoiceDialog<Product> dialog = new ChoiceDialog<>(
-            alternatives.get(0),
-            alternatives
-        );
+        Product currentProduct = selected.getProduct();
+
+        // Exclude the product currently selected in the plan.
+        List<WebProductListing> alternatives =
+            new ArrayList<>();
+
+        for (WebProductListing candidate : candidates) {
+
+            boolean isCurrent = currentProduct != null
+                && candidate.name().equalsIgnoreCase(
+                    currentProduct.getName()
+                )
+                && candidate.store().equalsIgnoreCase(
+                    currentProduct.getStore()
+                )
+                && Double.compare(
+                    candidate.price(),
+                    currentProduct.getPrice()
+                ) == 0
+                && Double.compare(
+                    candidate.size(),
+                    currentProduct.getSize()
+                ) == 0
+                && candidate.unit().equalsIgnoreCase(
+                    currentProduct.getUnit()
+                );
+
+            if (!isCurrent) {
+                alternatives.add(candidate);
+            }
+        }
+
+        if (alternatives.isEmpty()) {
+            showError(
+                "No remaining web alternatives available for "
+                + selected.getName()
+            );
+            return;
+        }
+
+        // Display only remaining candidates in the dropdown.
+        List<String> choices = new ArrayList<>();
+
+        for (int i = 0; i < alternatives.size(); i++) {
+
+            WebProductListing product = alternatives.get(i);
+
+            choices.add(String.format(
+                "%s | %s | $%.2f | %.2f %s",
+                product.name(),
+                product.store(),
+                product.price(),
+                product.size(),
+                product.unit()
+            ));
+        }
+
+        ChoiceDialog<String> dialog =
+            new ChoiceDialog<>(
+                choices.get(0),
+                choices
+            );
 
         dialog.setTitle("Find Alternative");
 
         dialog.setHeaderText(
-            "Alternatives for " + selectedItem.getName()
+            "Alternative products for "
+            + selected.getName()
         );
 
-        dialog.setContentText("Select a product:");
+        dialog.setContentText(
+            "Select a product:"
+        );
 
-        dialog.showAndWait().ifPresent(chosenProduct -> {
+        var result = dialog.showAndWait();
 
-            // Change only the selected product.
-            selectedItem.setProduct(chosenProduct);
+        if (result.isEmpty()) {
+            return;
+        }
 
-            // Refresh the whole plan.
-            setShoppingPlan(currentPlan);
+        int chosenIndex = choices.indexOf(result.get());
 
-            // Keep the selected shopping item highlighted.
-            itemsTable.getSelectionModel().select(selectedItem);
+        if (chosenIndex < 0) {
+            return;
+        }
 
-            optimizationStatusLabel.setText(
-                "Replaced " + selectedItem.getName()
-                + " with " + chosenProduct.getName()
-                + " from " + chosenProduct.getStore()
-            );
-        });
+        WebProductListing chosen =
+            alternatives.get(chosenIndex);
+
+        // Convert the saved listing into a Product.
+        Product replacement = new Product(
+            "WEB-ALT-" + chosenIndex,
+            chosen.name(),
+            chosen.brand(),
+            chosen.category(),
+            chosen.store(),
+            chosen.price(),
+            chosen.size(),
+            chosen.unit()
+        );
+
+        // Replace the product associated with the shopping item.
+        selected.setProduct(replacement);
+
+        // Refresh the current plan and its calculated total.
+        setShoppingPlan(currentPlan);
+
+        // Keep the modified item selected.
+        itemsTable.getSelectionModel().select(selected);
+
+        optimizationStatusLabel.setText(
+            "Product replaced with "
+            + chosen.name()
+            + " from "
+            + chosen.store()
+        );
     }
+
 
 
     private void animateBudgetProgress(double targetProgress) {
@@ -480,6 +550,16 @@ public class PlanController {
     }
 
 
+    private Map<String, List<WebProductListing>>
+        webCandidates = Map.of();
+
+    public void setWebCandidates(
+            Map<String, List<WebProductListing>> candidates) {
+
+        webCandidates = candidates == null
+            ? Map.of()
+            : Map.copyOf(candidates);
+    }
 
     private void showError(String message) {
 

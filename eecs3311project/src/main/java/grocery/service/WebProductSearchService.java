@@ -28,36 +28,84 @@ public class WebProductSearchService {
         }
 
         
+        // String prompt = """
+        //     Search online grocery product listings in Ontario, Canada.
+
+        //     Product: %s
+
+        //     Search these retailers where relevant:
+        //     - Walmart Canada
+        //     - No Frills
+        //     - Longo's
+        //     - Real Canadian Superstore
+        //     - Food Basics
+        //     - Metro
+        //     - FreshCo
+
+        //     Perform up to 3 web searches when necessary.
+        //     Find up to 3 relevant product listings, preferably from
+        //     different retailers.
+
+        //     For each listing report:
+        //     - Product name
+        //     - Brand
+        //     - Store
+        //     - Package size and unit
+        //     - Listed price in CAD, if available
+        //     - Source URL
+
+        //     Prioritize retailer product pages.
+        //     Do not invent prices, sizes, or product availability.
+        //     Do not continue searching after a sufficient set of
+        //     reliable listings has been found.
+        //     If fewer than 3 listings can be verified, return fewer.
+
+        //     Do not invent product listings or prices.
+        //     Prefer retailer product pages.
+        //     Avoid duplicate listings.
+        //     If a retailer does not show a usable price,
+        //     report the price as unavailable.
+        //     """.formatted(productName);
+
         String prompt = """
-            Search online grocery product listings in Ontario, Canada.
+            Find grocery products sold online in Ontario, Canada.
 
             Product: %s
 
-            Search these retailers where relevant:
+            Retailers:
             - Walmart Canada
-            - No Frills
+            - No Frills Canada
             - Longo's
             - Real Canadian Superstore
             - Food Basics
             - Metro
             - FreshCo
 
-            Return at most 5 relevant product listings
-            across different retailers.
+            Search official retailer product listings.
 
-            For each listing report:
-            - Product name
+            Search instructions:
+            - Use at most 3 web searches.
+            - Prefer obtaining multiple products from the
+            results of a single search.
+            - Stop searching once sufficient information
+            has been found.
+            - Do not retry the same failed search.
+            - Return up to 3 relevant products total.
+
+            For each product provide:
+            - Exact product name
             - Brand
             - Store
             - Package size and unit
-            - Listed price in CAD, if available
+            - Listed price in CAD
             - Source URL
 
-            Do not invent product listings or prices.
-            Prefer retailer product pages.
-            Avoid duplicate listings.
-            If a retailer does not show a usable price,
-            report the price as unavailable.
+            Rules:
+            - Only use information supported by search results.
+            - Do not invent prices, availability, or URLs.
+            - If a price cannot be verified, omit that product.
+            - If fewer than 3 products are found, return fewer.
+            - Keep the response concise.
             """.formatted(productName);
 
 

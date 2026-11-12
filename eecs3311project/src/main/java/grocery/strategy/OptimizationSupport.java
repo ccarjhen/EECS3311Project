@@ -95,9 +95,10 @@ class OptimizationSupport {
             List<Product> options = findOptions(item, allowedStores);
 
             if (options.isEmpty()) {
-                throw new IllegalStateException(
-                    "Cannot fulfill shopping item: " + item.getName()
-                );
+                // throw new IllegalStateException(
+                //     "Cannot fulfill shopping item: " + item.getName()
+                // );
+                continue; // Skip this item if no options are available
             }
 
             Product selected = cheapest(options, item.getQuantity());

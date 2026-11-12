@@ -33,6 +33,11 @@ public class ShoppingAgent {
     private final PromotionService promotionService;
     private final ObjectMapper mapper = new ObjectMapper();
 
+    // Maximum limits for the shopping plan and candidate items per request
+    private static final int MAX_PLAN_ITEMS = 10;
+    private static final int MAX_CANDIDATES_PER_ITEM = 3;
+
+
     public ShoppingAgent(
             LLMClient llm,
             ProductSearchService searchService,
@@ -128,7 +133,8 @@ public class ShoppingAgent {
             ShoppingRequest request,
             List<RequestedItem> requestedItems,
             boolean hasMembership,
-            LocalDate date
+            LocalDate date,
+            UserPreferences preferences
             ) {
 
         ShoppingPlan initialPlan =
@@ -156,8 +162,6 @@ public class ShoppingAgent {
             initialPlan.addItem(shoppingItem);
         }
 
-        UserPreferences preferences = new UserPreferences();
-
         OptimizationStrat strategy = new CheapestStrat(
             searchService,
             promotionService,
@@ -170,22 +174,119 @@ public class ShoppingAgent {
         return strategy.optimize(initialPlan);
     }
 
-    // Complete AI-assisted workflow
-    public ShoppingPlan createPlan(
-            ShoppingRequest request,
-            boolean hasMembership,
-            LocalDate date) throws Exception {
 
-        List<RequestedItem> items = createItemList(request);
+    public ShoppingPlan buildPlan(
+            ShoppingRequest request,
+            List<RequestedItem> items,
+            boolean hasMembership,
+            LocalDate date) {
 
         return buildPlan(
             request,
             items,
             hasMembership,
-            date
-             // Pass default preferences for now
+            date,
+            new UserPreferences()
         );
     }
+
+
+    
+    // Existing callers can continue using this version.
+    public ShoppingPlan createPlan(
+            ShoppingRequest request,
+            boolean hasMembership,
+            LocalDate date) throws Exception {
+
+        return createPlan(
+            request,
+            hasMembership,
+            date,
+            new UserPreferences()
+        );
+    }
+
+    // GUI uses this version with saved preferences.
+    public ShoppingPlan createPlan(
+            ShoppingRequest request,
+            boolean hasMembership,
+            LocalDate date,
+            UserPreferences preferences) throws Exception {
+
+        if (preferences == null) {
+            throw new IllegalArgumentException(
+                "Preferences cannot be null."
+            );
+        }
+
+        String preferencesContext = """
+            
+            Shopper preferences:
+            Preferred stores: %s
+            Preferred brands: %s
+            Dietary restrictions: %s
+            Allergies: %s
+            Excluded items: %s
+
+            Instructions:
+            - Consider preferred stores and brands when possible.
+            - Do not intentionally recommend excluded items.
+            - Respect the stated dietary restrictions.
+            - Do not claim that any product is allergy-safe.
+            - If ingredient suitability cannot be verified,
+            do not make safety guarantees.
+            """.formatted(
+                preferences.getPreferredStores(),
+                preferences.getPreferredBrands(),
+                preferences.getDietaryRestrictions(),
+                preferences.getAllergies(),
+                preferences.getExcludedItems()
+            );
+
+        ShoppingRequest enrichedRequest = new ShoppingRequest(
+            request.prompt() + "\n" + preferencesContext,
+            request.budget()
+        );
+
+        List<RequestedItem> items =
+            createItemList(enrichedRequest);
+
+        // Reject explicitly excluded item names.
+        for (RequestedItem item : items) {
+            String itemName =
+                item.name().trim().toLowerCase(
+                    java.util.Locale.ROOT
+                );
+
+            for (String excluded :
+                    preferences.getExcludedItems()) {
+
+                String excludedName =
+                    excluded.trim().toLowerCase(
+                        java.util.Locale.ROOT
+                    );
+
+                if (!excludedName.isEmpty()
+                        && (itemName.equals(excludedName)
+                            || itemName.contains(excludedName))) {
+
+                    throw new IllegalStateException(
+                        "Generated list contains an excluded item: "
+                        + item.name()
+                    );
+                }
+            }
+        }
+
+        return buildPlan(
+            request,
+            items,
+            hasMembership,
+            date,
+            preferences
+        );
+    }
+
 
 
     // ========================================
@@ -209,9 +310,19 @@ public class ShoppingAgent {
             );
         }
 
-        // 1. Claude generates the shopping list.
+        
+        List<RequestedItem> generatedItems = createItemList(request);
+
         List<RequestedItem> requestedItems =
-            createItemList(request);
+            generatedItems.stream()
+                .limit(MAX_PLAN_ITEMS)
+                .toList();
+
+        List<RequestedItem> excessItems =
+            generatedItems.stream()
+                .skip(MAX_PLAN_ITEMS)
+                .toList();
+
 
         // 2. Store all accepted web candidates.
         WebStoreAdapter webAdapter = new WebStoreAdapter();
@@ -228,7 +339,17 @@ public class ShoppingAgent {
         List<String> warnings =
             new ArrayList<>();
 
-        // Limit the number of web searches per request.
+        if (!excessItems.isEmpty()) {
+            warnings.add(
+                "The plan was limited to "
+                + MAX_PLAN_ITEMS
+                + " grocery items. "
+                + excessItems.size()
+                + " additional item(s) were not searched."
+            );
+        }
+
+        // --Limit the number of web searches per request.--
         int searchLimit = Math.min(requestedItems.size(), 10);
 
         // 3. Search online for each grocery item.
@@ -237,11 +358,18 @@ public class ShoppingAgent {
             RequestedItem item = requestedItems.get(i);
 
             if (i >= searchLimit) {
-                unresolved.add(item);
-                warnings.add(
-                    item.name() + ": web search limit reached"
+                // unresolved.add(item);
+                // warnings.add(
+                //     item.name() + ": web search limit reached"
+                // );
+                // continue;
+                System.out.println(
+                    "Web search limit: " + searchLimit
                 );
-                continue;
+
+                System.out.println(
+                    "Requested grocery items: " + requestedItems.size()
+                );
             }
 
             System.out.println(
@@ -257,6 +385,11 @@ public class ShoppingAgent {
                         research,
                         item.category()
                     );
+                
+                System.out.println(
+                    item.name() + ": extracted "
+                    + extracted.size() + " product listing(s)"
+                );
 
                 // 4. Filter matching products.
                 // Sort by listed package price, then keep 3.
@@ -275,7 +408,7 @@ public class ShoppingAgent {
                             WebProductListing::price
                         ))
                         .distinct()
-                        .limit(3)
+                        .limit(MAX_CANDIDATES_PER_ITEM)
                         .toList();
 
                 candidatesByItem.put(
@@ -309,11 +442,14 @@ public class ShoppingAgent {
 
             } catch (Exception ex) {
                 unresolved.add(item);
+
                 warnings.add(
-                    item.name() +
-                    ": web search failed - " +
-                    ex.getMessage()
+                    item.name()
+                    + ": web search failed - "
+                    + ex.getMessage()
                 );
+
+                continue;
             }
         }
 
@@ -445,16 +581,38 @@ public class ShoppingAgent {
             RequestedItem item,
             WebProductListing listing) {
 
-        String requestedName =
-            item.name().trim().toLowerCase(Locale.ROOT);
+        String requested = item.name()
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9 ]", " ")
+            .trim();
 
-        String listedName =
-            listing.name().trim().toLowerCase(Locale.ROOT);
+        String productText = (
+            listing.name() + " " + listing.brand()
+        )
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9 ]", " ");
 
-        return listedName.contains(requestedName)
-            && listing.category().equalsIgnoreCase(
-                item.category()
-            );
+        String[] keywords = requested.split("\\s+");
+
+        for (String keyword : keywords) {
+
+            if (keyword.isBlank()) {
+                continue;
+            }
+
+            boolean found =
+                java.util.Arrays.stream(
+                    productText.split("\\s+")
+                ).anyMatch(word ->
+                    word.equals(keyword)
+                );
+
+            if (!found) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
 }

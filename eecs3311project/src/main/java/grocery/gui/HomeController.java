@@ -9,10 +9,14 @@ import grocery.adapter.WalmartAdapter;
 import grocery.agent.ClaudeClient;
 import grocery.agent.ShoppingAgent;
 import grocery.agent.ShoppingRequest;
+import grocery.agent.WebPlanResult;
 import grocery.model.ShoppingPlan;
+import grocery.model.UserPreferences;
+import grocery.service.PreferencesService;
 import grocery.service.ProductSearchService;
 import grocery.service.PromotionService;
-
+import grocery.service.WebListingExtractor;
+import grocery.service.WebProductSearchService;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -74,12 +78,13 @@ public class HomeController {
         statusLabel.setText(
             "Claude is generating your shopping plan..."
         );
-
-        // Run API requests outside the JavaFX UI thread.
-        Task<ShoppingPlan> task = new Task<>() {
+       
+        Task<WebPlanResult> task = new Task<>() {
 
             @Override
-            protected ShoppingPlan call() throws Exception {
+            protected WebPlanResult call() throws Exception {
+
+                ClaudeClient claude = new ClaudeClient();
 
                 ProductSearchService searchService =
                     new ProductSearchService(
@@ -90,42 +95,102 @@ public class HomeController {
                         )
                     );
 
-                PromotionService promotionService =
-                    new PromotionService();
-
-                ClaudeClient claude = new ClaudeClient();
-
                 ShoppingAgent agent = new ShoppingAgent(
                     claude,
                     searchService,
-                    promotionService
+                    new PromotionService()
                 );
 
-                return agent.createPlan(
-                    request,
+                PreferencesService preferencesService =
+                    new PreferencesService();
+
+                UserPreferences preferences =
+                    preferencesService.load();
+
+                String preferenceContext = """
+                    Preferred stores: %s
+                    Preferred brands: %s
+                    Allergies: %s
+                    Dietary restrictions: %s
+                    Excluded items: %s
+
+                    Respect shopping preferences and restrictions.
+                    Do not claim allergy safety without verified
+                    ingredient and allergen information.
+                    """.formatted(
+                        preferences.getPreferredStores(),
+                        preferences.getPreferredBrands(),
+                        preferences.getAllergies(),
+                        preferences.getDietaryRestrictions(),
+                        preferences.getExcludedItems()
+                    );
+
+                ShoppingRequest webRequest =
+                    new ShoppingRequest(
+                        request.prompt() + "\n" + preferenceContext,
+                        request.budget()
+                    );
+
+                WebProductSearchService webSearch =
+                    new WebProductSearchService(claude);
+
+                WebListingExtractor extractor =
+                    new WebListingExtractor(claude);
+
+                return agent.createWebPlan(
+                    webRequest,
+                    webSearch,
+                    extractor,
+                    true,
                     false,
                     LocalDate.now()
                 );
             }
         };
 
+
+        // Handle the successful completion of the web plan generation task.
         task.setOnSucceeded(event -> {
 
             generateButton.setDisable(false);
             loadingIndicator.setVisible(false);
             loadingIndicator.setManaged(false);
 
-            ShoppingPlan plan = task.getValue();
+            WebPlanResult result = task.getValue();
+            ShoppingPlan plan = result.plan();
 
-            statusLabel.setText(
-                "Shopping plan generated successfully!"
-            );
+            if (result.unresolvedItems().isEmpty()) {
+                statusLabel.setText(
+                    "Web shopping plan generated successfully!"
+                );
+            } else {
+                statusLabel.setText(
+                    "Plan generated with "
+                    + result.unresolvedItems().size()
+                    + " unresolved item(s)."
+                );
+                
+            }
+
+            if (!result.warnings().isEmpty()) {
+                System.out.println("Web plan warnings:");
+                result.warnings().forEach(System.out::println);
+            }
 
             if (mainController != null) {
-                mainController.setCurrentPlan(plan);
+
+                // Save both the plan and its web-search candidates.
+                mainController.setCurrentPlan(result.plan());
+
+                mainController.setCurrentWebResult(result);
+
+                // Open Shopping Plan with alternatives available.
                 mainController.showPlan();
             }
+
+
         });
+
 
         task.setOnFailed(event -> {
 

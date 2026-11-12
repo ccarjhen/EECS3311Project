@@ -49,17 +49,6 @@ public class ClaudeClient implements LLMClient {
                     .put("content", prompt)
             ));
 
-
-        JsonNode webSearchTool = mapper.createObjectNode()
-            .put("type", "web_search_20250305")
-            .put("name", "web_search")
-            .put("max_uses", 3);
-
-
-        ((com.fasterxml.jackson.databind.node.ObjectNode) payload)
-            .set("tools", mapper.createArrayNode()
-                .add(webSearchTool));
-
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(API_URL))
             .timeout(Duration.ofSeconds(60))
@@ -141,7 +130,7 @@ public class ClaudeClient implements LLMClient {
 
         webSearchTool.put("type", "web_search_20250305");
         webSearchTool.put("name", "web_search");
-        webSearchTool.put("max_uses", 2);
+        webSearchTool.put("max_uses", 3);
 
         payload.set(
             "tools",

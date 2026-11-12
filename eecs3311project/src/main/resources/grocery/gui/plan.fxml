@@ -2,6 +2,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
+
 <ScrollPane xmlns:fx="http://javafx.com/fxml"
             fx:controller="grocery.gui.PlanController"
             fitToWidth="true"
