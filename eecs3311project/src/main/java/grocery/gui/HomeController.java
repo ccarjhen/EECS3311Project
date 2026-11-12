@@ -3,14 +3,10 @@ package grocery.gui;
 import java.time.LocalDate;
 import java.util.List;
 
-import grocery.adapter.LongosAdapter;
-import grocery.adapter.NoFrillsAdapter;
-import grocery.adapter.WalmartAdapter;
 import grocery.agent.ClaudeClient;
 import grocery.agent.ShoppingAgent;
 import grocery.agent.ShoppingRequest;
 import grocery.agent.WebPlanResult;
-import grocery.model.ShoppingPlan;
 import grocery.model.UserPreferences;
 import grocery.service.PreferencesService;
 import grocery.service.ProductSearchService;
@@ -87,13 +83,7 @@ public class HomeController {
                 ClaudeClient claude = new ClaudeClient();
 
                 ProductSearchService searchService =
-                    new ProductSearchService(
-                        List.of(
-                            new LongosAdapter(),
-                            new WalmartAdapter(),
-                            new NoFrillsAdapter()
-                        )
-                    );
+                    new ProductSearchService(List.of());
 
                 ShoppingAgent agent = new ShoppingAgent(
                     claude,
@@ -157,7 +147,6 @@ public class HomeController {
             loadingIndicator.setManaged(false);
 
             WebPlanResult result = task.getValue();
-            ShoppingPlan plan = result.plan();
 
             if (result.unresolvedItems().isEmpty()) {
                 statusLabel.setText(

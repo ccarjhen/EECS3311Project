@@ -1,4 +1,3 @@
-
 package grocery.agent;
 
 import java.time.LocalDate;
@@ -81,6 +80,7 @@ public class ShoppingAgent {
             - Use categories such as Dairy, Bakery, Produce,
               Meat, Breakfast, Beverages, or Other.
             - Only propose groceries relevant to the request.
+            - Generate no more than 10 distinct grocery items.
             - Do not invent prices, brands, promotions or stores.
             - Do not include Markdown or explanations.
             - Do not claim that products are allergy-safe.
@@ -330,8 +330,6 @@ public class ShoppingAgent {
 
 
         // 2. Store all accepted web candidates.
-        // WebStoreAdapter webAdapter = new WebStoreAdapter();
-
         Map<String, List<WebProductListing>> candidatesByItem =
             new LinkedHashMap<>();
 
@@ -353,9 +351,6 @@ public class ShoppingAgent {
                 + " additional item(s) were not searched."
             );
         }
-
-        // --Limit the number of web searches per request.--
-        int searchLimit = Math.min(requestedItems.size(), 10);
 
         
         ExecutorService executor =
@@ -417,7 +412,6 @@ public class ShoppingAgent {
                 }
 
                 for (WebProductListing listing : candidates) {
-                    // webAdapter.addApprovedListing(listing);
                     acceptedListings.add(listing);
                 }
             }

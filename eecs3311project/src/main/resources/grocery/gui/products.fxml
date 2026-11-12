@@ -23,10 +23,28 @@
                            onAction="#searchProducts"
                            HBox.hgrow="ALWAYS"/>
 
-                <Button text="Search"
+                <Button fx:id="searchButton" text="Search"
                         onAction="#searchProducts"
                         styleClass="primary-button"/>
 
+              <ProgressIndicator fx:id="loadingIndicator"
+                     prefWidth="24"
+                     prefHeight="24"
+                     visible="false"
+                     managed="false"/>
+
+              <Button text="Refresh Search" fx:id="refreshSearchButton" onAction="#refreshSearch"/>
+
+              <Button fx:id="addToPlanButton" text="Add to Shopping Plan"
+                     onAction="#addSelectedProductToPlan"/>
+
+            </HBox>
+
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <ComboBox fx:id="savedSearchCombo" promptText="Saved Searches" prefWidth="230"/>
+                <Button text="Save Search" onAction="#saveCurrentSearch"/>
+                <Button text="Load Search" onAction="#loadSavedSearch"/>
+                <Button text="Delete Saved" onAction="#deleteSavedSearch"/>
             </HBox>
 
             <HBox spacing="12" alignment="CENTER_LEFT">
@@ -67,6 +85,10 @@
 
                     <TableColumn fx:id="unitPriceColumn"
                                  text="Unit Price"/>
+
+                     <TableColumn fx:id="sourceColumn"
+                                   text="Source"
+                                   prefWidth="100"/>
                 </columns>
 
             </TableView>

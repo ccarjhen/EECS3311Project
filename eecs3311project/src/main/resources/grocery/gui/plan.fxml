@@ -49,39 +49,39 @@
                 <columns>
                     <TableColumn fx:id="itemColumn"
                                 text="Item"
-                                resizable="false"
+                                resizable="true"
                                 sortable="false"
                                 prefWidth="180"/>
 
                     <TableColumn fx:id="quantityColumn"
                                 text="Qty"
-                                resizable="false"
+                                resizable="true"
                                 sortable="false"
                                 prefWidth="70"/>
 
                     <TableColumn fx:id="productColumn"
                                 text="Product"
-                                resizable="false"
+                                resizable="true"
                                 sortable="false"
                                 prefWidth="280"/>
 
                     <TableColumn fx:id="storeColumn"
                                 text="Store"
-                                resizable="false"
+                                resizable="true"
                                 sortable="false"
                                 prefWidth="150"/>
 
                     <TableColumn fx:id="saleColumn"
                                 text="Sale?"
-                                resizable="false"
+                                resizable="true"
                                 sortable="false"
                                 prefWidth="100"/>
 
                     <TableColumn fx:id="priceColumn"
-                                text="Price"
-                                resizable="false"
-                                sortable="false"
-                                prefWidth="120"/>
+                                text="Price" resizable="true"
+                                sortable="false" prefWidth="120"/>
+                    <TableColumn fx:id="sourceColumn"
+                                text="Source" prefWidth="110"/>
                 </columns>
 
             </TableView>
@@ -99,7 +99,15 @@
                 <Label text="Select a product above to find alternatives."
                     styleClass="muted-label"/>
 
+                <Button fx:id="removeProductButton"
+                    text="Remove Product"
+                    onAction="#removeSelectedProduct"/>
+
             </HBox>
+
+            <Button fx:id="refreshPlanButton"
+                text="Refresh Plan"
+                onAction="#refreshPlan"/>
 
 
             <!-- Optimization Options -->
