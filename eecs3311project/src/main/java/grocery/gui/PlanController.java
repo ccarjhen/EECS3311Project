@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import grocery.adapter.CachedWebStoreAdapter;
 import grocery.adapter.LongosAdapter;
 import grocery.adapter.NoFrillsAdapter;
 import grocery.adapter.WalmartAdapter;
@@ -14,7 +15,9 @@ import grocery.controller.ShoppingController;
 import grocery.model.Product;
 import grocery.model.ShoppingItem;
 import grocery.model.ShoppingPlan;
+import grocery.model.UserPreferences;
 import grocery.model.WebProductListing;
+import grocery.service.PreferencesService;
 import grocery.service.ProductSearchService;
 import grocery.service.PromotionService;
 import grocery.strategy.CheapestStrat;
@@ -37,8 +40,11 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.util.Duration;
 
-
 public class PlanController {
+
+    // ========================================
+    // FXML COMPONENTS
+    // ========================================
 
     @FXML private Label planNameLabel;
     @FXML private Label totalLabel;
@@ -57,20 +63,28 @@ public class PlanController {
     @FXML private TableColumn<ShoppingItem, String> saleColumn;
     @FXML private TableColumn<ShoppingItem, String> priceColumn;
 
-    // <CodeBlock language="java" editable>
     @FXML private Button cheapestButton;
     @FXML private Button fewestStoresButton;
     @FXML private Button oneStoreButton;
-    @FXML private Label optimizationStatusLabel;
-
     @FXML private Button alternativeButton;
 
-    // Used to animate the progress bar.
-    private Timeline budgetAnimation;
+    @FXML private Label optimizationStatusLabel;
+
+    // ========================================
+    // CONTROLLER STATE
+    // ========================================
 
     private ShoppingPlan currentPlan;
+    private ShoppingPlan optimizationBasePlan;
+    private MainController mainController;
+    private Timeline budgetAnimation;
 
-    private final ProductSearchService searchService =
+    // The previously retrieved web products.
+    private Map<String, List<WebProductListing>> webCandidates =
+        Map.of();
+
+    // Legacy sample data, only for sample-based plans.
+    private final ProductSearchService sampleSearchService =
         new ProductSearchService(
             List.of(
                 new LongosAdapter(),
@@ -83,13 +97,27 @@ public class PlanController {
         new PromotionService();
 
     private final ShoppingController shoppingController =
-        new ShoppingController(searchService);
+        new ShoppingController(sampleSearchService);
 
-    private MainController mainController;
+    // ========================================
+    // MAIN CONTROLLER CONNECTION
+    // ========================================
 
     public void setMainController(MainController controller) {
         this.mainController = controller;
     }
+
+    public void setWebCandidates(
+            Map<String, List<WebProductListing>> candidates) {
+
+        this.webCandidates = candidates == null
+            ? Map.of()
+            : Map.copyOf(candidates);
+    }
+
+    // ========================================
+    // INITIALIZE GUI
+    // ========================================
 
     @FXML
     public void initialize() {
@@ -107,23 +135,33 @@ public class PlanController {
         );
 
         productColumn.setCellValueFactory(data -> {
-            Product product = data.getValue().getProduct();
+
+            Product product =
+                data.getValue().getProduct();
 
             return new ReadOnlyStringWrapper(
-                product == null ? "Unassigned" : product.getName()
+                product == null
+                    ? "Unassigned"
+                    : product.getName()
             );
         });
 
         storeColumn.setCellValueFactory(data -> {
-            Product product = data.getValue().getProduct();
+
+            Product product =
+                data.getValue().getProduct();
 
             return new ReadOnlyStringWrapper(
-                product == null ? "-" : product.getStore()
+                product == null
+                    ? "-"
+                    : product.getStore()
             );
         });
 
         saleColumn.setCellValueFactory(data -> {
-            Product product = data.getValue().getProduct();
+
+            Product product =
+                data.getValue().getProduct();
 
             return new ReadOnlyStringWrapper(
                 product != null && product.hasPromotion()
@@ -134,26 +172,30 @@ public class PlanController {
 
         priceColumn.setCellValueFactory(data ->
             new ReadOnlyStringWrapper(
-                String.format("$%.2f", data.getValue().getSubtotal())
+                String.format(
+                    "$%.2f",
+                    data.getValue().getSubtotal()
+                )
             )
         );
 
-
-        // Display helpful text when the table is empty.
         itemsTable.setPlaceholder(
-            new Label("No products yet. Generate a shopping plan first.")
+            new Label(
+                "No products yet. Generate a shopping plan first."
+            )
         );
 
-        // Enable Find Alternative only when an item is selected.
+        // Find Alternative requires a selected item.
         alternativeButton.setDisable(true);
 
         itemsTable.getSelectionModel()
             .selectedItemProperty()
-            .addListener((obs, oldItem, selectedItem) -> {
-                alternativeButton.setDisable(selectedItem == null);
+            .addListener((obs, previous, selected) -> {
+                alternativeButton.setDisable(
+                    selected == null
+                );
             });
 
-        // Prevent resizing, sorting and reordering columns.
         for (TableColumn<ShoppingItem, ?> column
                 : itemsTable.getColumns()) {
 
@@ -162,30 +204,40 @@ public class PlanController {
             column.setReorderable(false);
         }
 
-        // Automatically distribute columns across the table width.
         itemsTable.setColumnResizePolicy(
             TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN
         );
     }
 
-    public void setShoppingPlan(ShoppingPlan plan) {
-        currentPlan = plan;
+    // ========================================
+    // DISPLAY SHOPPING PLAN
+    // ========================================
 
-        // Enable optimization only when a plan exists.
-        boolean hasPlan = plan != null;
+    public void setShoppingPlan(ShoppingPlan plan) {
+
+        currentPlan = plan;
+        optimizationBasePlan = plan;
+
+        boolean hasPlan = plan != null
+            && !plan.getShoppingItems().isEmpty();
 
         cheapestButton.setDisable(!hasPlan);
         fewestStoresButton.setDisable(!hasPlan);
         oneStoreButton.setDisable(!hasPlan);
 
         if (plan == null) {
+
             planNameLabel.setText("Shopping Plan");
             totalLabel.setText("$0.00");
-            budgetLabel.setText("No shopping plan generated.");
+            budgetLabel.setText(
+                "No shopping plan generated."
+            );
             percentLabel.setText("0% of budget");
             remainingLabel.setText("");
+
             budgetProgress.setProgress(0);
             itemsTable.getItems().clear();
+
             return;
         }
 
@@ -216,103 +268,271 @@ public class PlanController {
         );
 
         percentLabel.setText(
-            String.format("%.1f%% of budget", fraction * 100)
+            String.format(
+                "%.1f%% of budget",
+                fraction * 100
+            )
         );
 
         double remaining = budget - total;
 
         remainingLabel.setText(
             remaining >= 0
-                ? String.format("$%.2f remaining", remaining)
-                : String.format("$%.2f over budget", -remaining)
+                ? String.format(
+                    "$%.2f remaining",
+                    remaining
+                )
+                : String.format(
+                    "$%.2f over budget",
+                    -remaining
+                )
         );
 
         animateBudgetProgress(fraction);
     }
 
+    // ========================================
+    // ACTIVE PRODUCT DATA SOURCE
+    // ========================================
+
+    private ProductSearchService getActiveSearchService() {
+
+        // When the plan came from web search, optimization
+        // must use web products rather than sample products.
+        boolean isWebPlan = mainController != null
+            && mainController.getCurrentWebResult() != null;
+
+        if (isWebPlan) {
+
+            if (webCandidates.isEmpty()) {
+                throw new IllegalStateException(
+                    "No cached web products are available "
+                    + "for optimization."
+                );
+            }
+
+            return new ProductSearchService(
+                List.of(
+                    new CachedWebStoreAdapter(
+                        webCandidates
+                    )
+                )
+            );
+        }
+
+        // Older sample-based plans can still use sample data.
+        return sampleSearchService;
+    }
+
+    // ========================================
+    // USER PREFERENCES
+    // ========================================
+
+    private UserPreferences loadPreferences() {
+
+        try {
+            return new PreferencesService().load();
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                "Unable to load shopping preferences: "
+                + e.getMessage(),
+                e
+            );
+        }
+    }
+
+    // ========================================
+    // OPTIMIZATION: CHEAPEST
+    // ========================================
+
     @FXML
     private void optimizeCheapest() {
 
-        OptimizationStrat strategy = new CheapestStrat(
-            searchService,
-            promotionService,
-            false,
-            LocalDate.now(),
-            null
-        );
+        try {
+            ProductSearchService activeSearch =
+                getActiveSearchService();
 
-        applyOptimization("Cheapest", strategy);
+            UserPreferences preferences =
+                loadPreferences();
+
+            OptimizationStrat strategy =
+                new CheapestStrat(
+                    activeSearch,
+                    promotionService,
+                    false,
+                    LocalDate.now(),
+                    preferences
+                );
+
+            applyOptimization("Cheapest", strategy);
+
+        } catch (RuntimeException e) {
+            showError(e.getMessage());
+        }
     }
+
+    // ========================================
+    // OPTIMIZATION: FEWEST STORES
+    // ========================================
 
     @FXML
     private void optimizeFewestStores() {
 
-        OptimizationStrat strategy = new FewestStoresStrat(
-            searchService,
-            promotionService,
-            false,
-            LocalDate.now(),
-            null
-        );
+        try {
+            ProductSearchService activeSearch =
+                getActiveSearchService();
 
-        applyOptimization("Fewest Stores", strategy);
+            UserPreferences preferences =
+                loadPreferences();
+
+            OptimizationStrat strategy =
+                new FewestStoresStrat(
+                    activeSearch,
+                    promotionService,
+                    false,
+                    LocalDate.now(),
+                    preferences
+                );
+
+            applyOptimization("Fewest Stores", strategy);
+
+        } catch (RuntimeException e) {
+            showError(e.getMessage());
+        }
     }
+
+    // ========================================
+    // OPTIMIZATION: ONE STORE
+    // ========================================
 
     @FXML
     private void optimizeOneStore() {
 
-        if (currentPlan == null) {
-            showError("Generate a shopping plan first.");
+        if (currentPlan == null
+                || currentPlan.getShoppingItems().isEmpty()) {
+
+            showError(
+                "Generate a shopping plan first."
+            );
             return;
         }
 
-        // Collect stores with products matching plan items.
-        // This does not guarantee each store has every item.
-        Set<String> storeNames = new TreeSet<>();
+        try {
+            ProductSearchService activeSearch =
+                getActiveSearchService();
 
-        for (ShoppingItem item : currentPlan.getShoppingItems()) {
+            UserPreferences preferences =
+                loadPreferences();
 
-            for (Product product : searchService.search(item.getName())) {
+            // Only show stores with suitable products
+            // for every shopping item in the current plan.
+            Set<String> availableStores = new TreeSet<>();
 
-                if (product.getCategory().equalsIgnoreCase(
-                        item.getCategory())) {
+            boolean firstItem = true;
 
-                    storeNames.add(product.getStore());
+            for (ShoppingItem item :
+                    currentPlan.getShoppingItems()) {
+
+                Set<String> itemStores = new TreeSet<>();
+
+                for (Product product :
+                        activeSearch.search(item.getName())) {
+
+                    // Use the same basic category and
+                    // exclusion checks as optimization.
+                    if (!product.getCategory()
+                            .equalsIgnoreCase(
+                                item.getCategory()
+                            )) {
+                        continue;
+                    }
+
+                    String productName =
+                        product.getName().toLowerCase(
+                            java.util.Locale.ROOT
+                        );
+
+                    boolean excluded = preferences
+                        .getExcludedItems()
+                        .stream()
+                        .filter(s -> s != null && !s.isBlank())
+                        .anyMatch(s ->
+                            productName.contains(
+                                s.trim().toLowerCase(
+                                    java.util.Locale.ROOT
+                                )
+                            )
+                        );
+
+                    if (!excluded) {
+                        itemStores.add(product.getStore());
+                    }
+                }
+
+                if (firstItem) {
+                    availableStores.addAll(itemStores);
+                    firstItem = false;
+                } else {
+                    availableStores.retainAll(itemStores);
                 }
             }
-        }
 
-        if (storeNames.isEmpty()) {
-            showError("No stores found for your shopping plan.");
-            return;
-        }
+            if (availableStores.isEmpty()) {
+                showError(
+                    "No single store has suitable cached "
+                    + "products for every shopping item."
+                );
+                return;
+            }
 
-        List<String> stores = new ArrayList<>(storeNames);
+            List<String> stores =
+                new ArrayList<>(availableStores);
 
-        ChoiceDialog<String> dialog = new ChoiceDialog<>(
-            stores.get(0),
-            stores
-        );
+            ChoiceDialog<String> dialog =
+                new ChoiceDialog<>(
+                    stores.get(0),
+                    stores
+                );
 
-        dialog.setTitle("One Store Optimization");
-        dialog.setHeaderText("Choose a grocery store");
-        dialog.setContentText("Store:");
-
-        dialog.showAndWait().ifPresent(selectedStore -> {
-
-            OptimizationStrat strategy = new OneStoreStrat(
-                searchService,
-                promotionService,
-                false,
-                LocalDate.now(),
-                selectedStore,
-                null
+            dialog.setTitle(
+                "One Store Optimization"
             );
 
-            applyOptimization("One Store: " + selectedStore, strategy);
-        });
+            dialog.setHeaderText(
+                "Choose a grocery store"
+            );
+
+            dialog.setContentText("Store:");
+
+            dialog.showAndWait().ifPresent(
+                selectedStore -> {
+
+                    OptimizationStrat strategy =
+                        new OneStoreStrat(
+                            activeSearch,
+                            promotionService,
+                            false,
+                            LocalDate.now(),
+                            selectedStore,
+                            preferences
+                        );
+
+                    applyOptimization(
+                        "One Store: " + selectedStore,
+                        strategy
+                    );
+                }
+            );
+
+        } catch (RuntimeException e) {
+            showError(e.getMessage());
+        }
     }
 
+    // ========================================
+    // APPLY OPTIMIZATION
+    // ========================================
     private void applyOptimization(
             String name,
             OptimizationStrat strategy) {
@@ -322,22 +542,36 @@ public class PlanController {
             return;
         }
 
+        // Always optimize from the original shopping requirements,
+        // not the result of a previously selected strategy.
+        ShoppingPlan source = optimizationBasePlan != null
+            ? optimizationBasePlan
+            : currentPlan;
+
         try {
             shoppingController.setOptimizationStrategy(strategy);
 
             ShoppingPlan optimized =
-                shoppingController.optimize(currentPlan);
+                shoppingController.optimize(source);
 
-            // Update the shared plan so it remains selected
-            // when navigating between different pages.
+            if (optimized == null) {
+                throw new IllegalStateException(
+                    "Optimization did not return a plan."
+                );
+            }
+
             currentPlan = optimized;
 
             if (mainController != null) {
                 mainController.setCurrentPlan(optimized);
             }
 
-            // Refresh the table, total and budget indicators.
+            // Update the table, prices, budget, and progress.
             setShoppingPlan(optimized);
+
+            // setShoppingPlan() changes this field, so restore
+            // the original baseline for the next strategy.
+            optimizationBasePlan = source;
 
             optimizationStatusLabel.setText(
                 name + " optimization applied successfully."
@@ -357,25 +591,29 @@ public class PlanController {
         }
     }
 
-   
+
+    // ========================================
+    // FIND ALTERNATIVE
+    // ========================================
+
     @FXML
     private void findAlternative() {
 
         ShoppingItem selected =
-            itemsTable.getSelectionModel().getSelectedItem();
+            itemsTable.getSelectionModel()
+                .getSelectedItem();
 
         if (selected == null || currentPlan == null) {
-            showError("Please select a shopping item first.");
+
+            showError(
+                "Please select a shopping item first."
+            );
             return;
         }
 
-        // Retrieve the cached products for this shopping item.
+        // Retrieve the previously saved web candidates.
         List<WebProductListing> candidates =
-            webCandidates.get(selected.getName());
-
-        // Handle minor differences in item-name capitalization.
-        if (candidates == null) {
-            candidates = webCandidates.entrySet()
+            webCandidates.entrySet()
                 .stream()
                 .filter(entry ->
                     entry.getKey().equalsIgnoreCase(
@@ -385,25 +623,26 @@ public class PlanController {
                 .map(Map.Entry::getValue)
                 .findFirst()
                 .orElse(List.of());
-        }
 
         if (candidates.isEmpty()) {
             showError(
-                "No saved web alternatives found for "
+                "No saved web alternatives are available for "
                 + selected.getName()
             );
             return;
         }
 
-        Product currentProduct = selected.getProduct();
+        Product currentProduct =
+            selected.getProduct();
 
-        // Exclude the product currently selected in the plan.
         List<WebProductListing> alternatives =
             new ArrayList<>();
 
+        // Exclude the currently selected product.
         for (WebProductListing candidate : candidates) {
 
-            boolean isCurrent = currentProduct != null
+            boolean isCurrent =
+                currentProduct != null
                 && candidate.name().equalsIgnoreCase(
                     currentProduct.getName()
                 )
@@ -429,27 +668,28 @@ public class PlanController {
 
         if (alternatives.isEmpty()) {
             showError(
-                "No remaining web alternatives available for "
-                + selected.getName()
+                "No remaining web alternatives are available "
+                + "for " + selected.getName()
             );
             return;
         }
 
-        // Display only remaining candidates in the dropdown.
+        // Display remaining candidates using the
+        // existing Find Alternative ChoiceDialog.
         List<String> choices = new ArrayList<>();
 
-        for (int i = 0; i < alternatives.size(); i++) {
+        for (WebProductListing product : alternatives) {
 
-            WebProductListing product = alternatives.get(i);
-
-            choices.add(String.format(
-                "%s | %s | $%.2f | %.2f %s",
-                product.name(),
-                product.store(),
-                product.price(),
-                product.size(),
-                product.unit()
-            ));
+            choices.add(
+                String.format(
+                    "%s | %s | $%.2f | %.2f %s",
+                    product.name(),
+                    product.store(),
+                    product.price(),
+                    product.size(),
+                    product.unit()
+                )
+            );
         }
 
         ChoiceDialog<String> dialog =
@@ -475,18 +715,52 @@ public class PlanController {
             return;
         }
 
-        int chosenIndex = choices.indexOf(result.get());
+        int index = choices.indexOf(result.get());
 
-        if (chosenIndex < 0) {
+        if (index < 0) {
             return;
         }
 
         WebProductListing chosen =
-            alternatives.get(chosenIndex);
+            alternatives.get(index);
 
-        // Convert the saved listing into a Product.
+        // Ensure the selected alternative is not excluded
+        // by the shopper's saved preferences.
+        UserPreferences preferences;
+
+        try {
+            preferences = loadPreferences();
+        } catch (RuntimeException e) {
+            showError(e.getMessage());
+            return;
+        }
+
+        String chosenName =
+            chosen.name().toLowerCase(
+                java.util.Locale.ROOT
+            );
+
+        boolean excluded = preferences.getExcludedItems()
+            .stream()
+            .filter(s -> s != null && !s.isBlank())
+            .anyMatch(s ->
+                chosenName.contains(
+                    s.trim().toLowerCase(
+                        java.util.Locale.ROOT
+                    )
+                )
+            );
+
+        if (excluded) {
+            showError(
+                "This product conflicts with your excluded "
+                + "items preferences."
+            );
+            return;
+        }
+
         Product replacement = new Product(
-            "WEB-ALT-" + chosenIndex,
+            "WEB-ALT-" + index,
             chosen.name(),
             chosen.brand(),
             chosen.category(),
@@ -496,14 +770,14 @@ public class PlanController {
             chosen.unit()
         );
 
-        // Replace the product associated with the shopping item.
+        // Replace the product without another web search.
         selected.setProduct(replacement);
 
-        // Refresh the current plan and its calculated total.
+        // Refresh the current plan, price, and budget.
         setShoppingPlan(currentPlan);
 
-        // Keep the modified item selected.
-        itemsTable.getSelectionModel().select(selected);
+        itemsTable.getSelectionModel()
+            .select(selected);
 
         optimizationStatusLabel.setText(
             "Product replaced with "
@@ -513,16 +787,19 @@ public class PlanController {
         );
     }
 
+    // ========================================
+    // BUDGET PROGRESS ANIMATION
+    // ========================================
 
+    private void animateBudgetProgress(
+            double targetProgress) {
 
-    private void animateBudgetProgress(double targetProgress) {
-
-        // Stop an existing animation before starting another.
         if (budgetAnimation != null) {
             budgetAnimation.stop();
         }
 
-        double startProgress = budgetProgress.getProgress();
+        double startProgress =
+            budgetProgress.getProgress();
 
         double endProgress = Math.max(
             0,
@@ -530,6 +807,7 @@ public class PlanController {
         );
 
         budgetAnimation = new Timeline(
+
             new KeyFrame(
                 Duration.ZERO,
                 new KeyValue(
@@ -537,6 +815,7 @@ public class PlanController {
                     startProgress
                 )
             ),
+
             new KeyFrame(
                 Duration.millis(650),
                 new KeyValue(
@@ -549,25 +828,26 @@ public class PlanController {
         budgetAnimation.play();
     }
 
-
-    private Map<String, List<WebProductListing>>
-        webCandidates = Map.of();
-
-    public void setWebCandidates(
-            Map<String, List<WebProductListing>> candidates) {
-
-        webCandidates = candidates == null
-            ? Map.of()
-            : Map.copyOf(candidates);
-    }
+    // ========================================
+    // ERROR HANDLING
+    // ========================================
 
     private void showError(String message) {
 
-        Alert alert = new Alert(Alert.AlertType.WARNING);
+        Alert alert = new Alert(
+            Alert.AlertType.WARNING
+        );
 
         alert.setTitle("Shopping Plan");
-        alert.setHeaderText("Optimization");
-        alert.setContentText(message);
+        alert.setHeaderText(
+            "Shopping Plan Notice"
+        );
+
+        alert.setContentText(
+            message == null
+                ? "An unexpected error occurred."
+                : message
+        );
 
         alert.showAndWait();
     }

@@ -8,11 +8,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import grocery.adapter.WebStoreAdapter;
+import grocery.adapter.CachedWebStoreAdapter;
 import grocery.model.ShoppingItem;
 import grocery.model.ShoppingPlan;
 import grocery.model.UserPreferences;
@@ -24,6 +27,8 @@ import grocery.service.WebProductSearchService;
 import grocery.service.WebSearchResult;
 import grocery.strategy.CheapestStrat;
 import grocery.strategy.OptimizationStrat;
+
+
 
 
 public class ShoppingAgent {
@@ -325,7 +330,7 @@ public class ShoppingAgent {
 
 
         // 2. Store all accepted web candidates.
-        WebStoreAdapter webAdapter = new WebStoreAdapter();
+        // WebStoreAdapter webAdapter = new WebStoreAdapter();
 
         Map<String, List<WebProductListing>> candidatesByItem =
             new LinkedHashMap<>();
@@ -352,75 +357,52 @@ public class ShoppingAgent {
         // --Limit the number of web searches per request.--
         int searchLimit = Math.min(requestedItems.size(), 10);
 
-        // 3. Search online for each grocery item.
-        for (int i = 0; i < requestedItems.size(); i++) {
+        
+        ExecutorService executor =
+            Executors.newFixedThreadPool(2);
 
-            RequestedItem item = requestedItems.get(i);
+        try {
+            List<CompletableFuture<ItemSearchResult>> futures =
+                new ArrayList<>();
 
-            if (i >= searchLimit) {
-                // unresolved.add(item);
-                // warnings.add(
-                //     item.name() + ": web search limit reached"
-                // );
-                // continue;
-                System.out.println(
-                    "Web search limit: " + searchLimit
-                );
+            for (RequestedItem item : requestedItems) {
 
-                System.out.println(
-                    "Requested grocery items: " + requestedItems.size()
+                futures.add(
+                    CompletableFuture.supplyAsync(
+                        () -> searchOneItem(
+                            item,
+                            webSearch,
+                            extractor
+                        ),
+                        executor
+                    )
                 );
             }
 
-            System.out.println(
-                "\nSearching online for: " + item.name()
-            );
+            // Collect results in the original item order.
+            for (CompletableFuture<ItemSearchResult> future : futures) {
 
-            try {
-                WebSearchResult research =
-                    webSearch.search(item.name());
+                ItemSearchResult result = future.join();
+                RequestedItem item = result.item();
 
-                List<WebProductListing> extracted =
-                    extractor.extract(
-                        research,
-                        item.category()
+                if (result.error() != null) {
+                    unresolved.add(item);
+                    warnings.add(
+                        item.name() + ": " + result.error()
                     );
-                
-                System.out.println(
-                    item.name() + ": extracted "
-                    + extracted.size() + " product listing(s)"
-                );
+                    continue;
+                }
 
-                // 4. Filter matching products.
-                // Sort by listed package price, then keep 3.
                 List<WebProductListing> candidates =
-                    extracted.stream()
-                        .filter(p ->
-                            matchesRequestedItem(item, p)
-                        )
-                        .filter(p ->
-                            Double.isFinite(p.price()) &&
-                            p.price() > 0 &&
-                            Double.isFinite(p.size()) &&
-                            p.size() > 0
-                        )
-                        .sorted(Comparator.comparingDouble(
-                            WebProductListing::price
-                        ))
-                        .distinct()
-                        .limit(MAX_CANDIDATES_PER_ITEM)
-                        .toList();
+                    result.candidates();
 
-                candidatesByItem.put(
-                    item.name(),
-                    candidates
-                );
+                candidatesByItem.put(item.name(), candidates);
 
                 if (candidates.isEmpty()) {
                     unresolved.add(item);
                     warnings.add(
-                        item.name() +
-                        ": no suitable priced listings found"
+                        item.name()
+                        + ": no suitable priced listings found"
                     );
                     continue;
                 }
@@ -428,35 +410,31 @@ public class ShoppingAgent {
                 if (!useEstimatedPrices) {
                     unresolved.add(item);
                     warnings.add(
-                        item.name() +
-                        ": estimated prices not authorized for optimization"
+                        item.name()
+                        + ": estimated prices not authorized"
                     );
                     continue;
                 }
 
-                // 5. Add candidates to the web adapter.
                 for (WebProductListing listing : candidates) {
-                    webAdapter.addApprovedListing(listing);
+                    // webAdapter.addApprovedListing(listing);
                     acceptedListings.add(listing);
                 }
-
-            } catch (Exception ex) {
-                unresolved.add(item);
-
-                warnings.add(
-                    item.name()
-                    + ": web search failed - "
-                    + ex.getMessage()
-                );
-
-                continue;
             }
+
+        } finally {
+            executor.shutdown();
         }
+
 
         // 6. Use web listings in ProductSearchService.
         ProductSearchService webProducts =
             new ProductSearchService(
-                List.of(webAdapter)
+                List.of(
+                    new CachedWebStoreAdapter(
+                        candidatesByItem
+                    )
+                )
             );
 
         ShoppingPlan initialPlan =
@@ -613,6 +591,65 @@ public class ShoppingAgent {
         }
 
         return true;
+    }
+
+
+    private record ItemSearchResult(
+        RequestedItem item,
+        List<WebProductListing> candidates,
+        String error
+    ) {}
+
+    private ItemSearchResult searchOneItem(
+            RequestedItem item,
+            WebProductSearchService webSearch,
+            WebListingExtractor extractor) {
+
+        try {
+            System.out.println(
+                "Searching online for: " + item.name()
+            );
+
+            WebSearchResult research =
+                webSearch.search(item.name());
+
+            List<WebProductListing> extracted =
+                extractor.extract(research, item.category());
+
+            List<WebProductListing> candidates =
+                extracted.stream()
+                    .filter(p -> matchesRequestedItem(item, p))
+                    .filter(p ->
+                        Double.isFinite(p.price())
+                        && p.price() > 0
+                        && Double.isFinite(p.size())
+                        && p.size() > 0
+                    )
+                    .sorted(Comparator.comparingDouble(
+                        WebProductListing::price
+                    ))
+                    .distinct()
+                    .limit(MAX_CANDIDATES_PER_ITEM)
+                    .toList();
+
+            System.out.printf(
+                "%s: %d extracted, %d accepted%n",
+                item.name(),
+                extracted.size(),
+                candidates.size()
+            );
+
+            return new ItemSearchResult(item, candidates, null);
+
+        } catch (Exception e) {
+            return new ItemSearchResult(
+                item,
+                List.of(),
+                e.getMessage() == null
+                    ? e.getClass().getSimpleName()
+                    : e.getMessage()
+            );
+        }
     }
 
 }

@@ -6,7 +6,6 @@ import java.util.Map;
 import grocery.agent.WebPlanResult;
 import grocery.model.ShoppingPlan;
 import grocery.model.WebProductListing;
-
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
@@ -41,11 +40,11 @@ public class MainController {
     public void setCurrentPlan(ShoppingPlan plan) {
         this.currentPlan = plan;
 
-        // Avoid attaching old web candidates to a different plan.
-        if (currentWebResult != null
-                && currentWebResult.plan() != plan) {
-            currentWebResult = null;
-        }
+        // // Avoid attaching old web candidates to a different plan.
+        // if (currentWebResult != null
+        //         && currentWebResult.plan() != plan) {
+        //     currentWebResult = null;
+        // }
     }
 
     public ShoppingPlan getCurrentPlan() {
