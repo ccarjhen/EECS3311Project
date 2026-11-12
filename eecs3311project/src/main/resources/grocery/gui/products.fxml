@@ -1,14 +1,82 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 
-<VBox xmlns:fx="http://javafx.com/fxml"
-      spacing="15"
-      styleClass="page-content">
+<ScrollPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="grocery.gui.ProductsController"
+            fitToWidth="true"
+            styleClass="page-scroll">
 
-    <Label text="Products"
-           styleClass="section-title"/>
+    <content>
+        <VBox spacing="22" styleClass="page-content">
 
-    <Label text="Your generated products will appear here."/>
+            <Label text="Product Search"
+                   styleClass="section-title"/>
 
-</VBox>
+            <Label text="Search and compare grocery products across stores."
+                   styleClass="muted-label"/>
+
+            <HBox spacing="12" alignment="CENTER_LEFT">
+
+                <TextField fx:id="searchField"
+                           promptText="Search for milk, bread, eggs..."
+                           onAction="#searchProducts"
+                           HBox.hgrow="ALWAYS"/>
+
+                <Button text="Search"
+                        onAction="#searchProducts"
+                        styleClass="primary-button"/>
+
+            </HBox>
+
+            <HBox spacing="12" alignment="CENTER_LEFT">
+
+                <Label text="Sort by:"
+                       styleClass="field-label"/>
+
+                <ComboBox fx:id="sortComboBox"
+                          prefWidth="180"/>
+
+                <Region HBox.hgrow="ALWAYS"/>
+
+                <Label fx:id="resultCountLabel"
+                       text="0 products found"
+                       styleClass="muted-label"/>
+
+            </HBox>
+
+            <TableView fx:id="productsTable"
+                       prefHeight="380"
+                       styleClass="shopping-table">
+
+                <columns>
+                    <TableColumn fx:id="nameColumn"
+                                 text="Product"/>
+
+                    <TableColumn fx:id="brandColumn"
+                                 text="Brand"/>
+
+                    <TableColumn fx:id="storeColumn"
+                                 text="Store"/>
+
+                    <TableColumn fx:id="sizeColumn"
+                                 text="Package Size"/>
+
+                    <TableColumn fx:id="priceColumn"
+                                 text="Price"/>
+
+                    <TableColumn fx:id="unitPriceColumn"
+                                 text="Unit Price"/>
+                </columns>
+
+            </TableView>
+
+            <Label fx:id="statusLabel"
+                   text="Enter a product name to begin searching."
+                   wrapText="true"
+                   styleClass="muted-label"/>
+
+        </VBox>
+    </content>
+
+</ScrollPane>

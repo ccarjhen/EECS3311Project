@@ -1,14 +1,180 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 
-<VBox xmlns:fx="http://javafx.com/fxml"
-      spacing="15"
-      styleClass="page-content">
+<ScrollPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="grocery.gui.PreferencesController"
+            fitToWidth="true"
+            styleClass="page-scroll">
 
-    <Label text="Preferences"
-           styleClass="section-title"/>
+    <content>
+        <VBox spacing="22" styleClass="page-content">
 
-    <Label text="Your generated preferences will appear here."/>
+            <Label text="Shopping Preferences"
+                   styleClass="section-title"/>
 
-</VBox>
+            <Label text="Customize your preferred stores, brands and shopping restrictions."
+                   wrapText="true"
+                   styleClass="muted-label"/>
+
+            <GridPane hgap="20" vgap="20">
+
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="50"/>
+                    <ColumnConstraints percentWidth="50"/>
+                </columnConstraints>
+
+                <!-- Preferred Stores -->
+                <VBox GridPane.rowIndex="0"
+                      GridPane.columnIndex="0"
+                      spacing="10"
+                      styleClass="preference-card">
+
+                    <Label text="Preferred Stores"
+                           styleClass="preference-title"/>
+
+                    <ListView fx:id="storesList"
+                              prefHeight="130"/>
+
+                    <HBox spacing="8">
+                        <TextField fx:id="storeField"
+                                   promptText="Enter store"
+                                   HBox.hgrow="ALWAYS"/>
+
+                        <Button text="Add"
+                                onAction="#addStore"
+                                styleClass="primary-button"/>
+                    </HBox>
+
+                    <Button text="Remove Selected"
+                            onAction="#removeStore"
+                            styleClass="remove-button"/>
+                </VBox>
+
+                <!-- Preferred Brands -->
+                <VBox GridPane.rowIndex="0"
+                      GridPane.columnIndex="1"
+                      spacing="10"
+                      styleClass="preference-card">
+
+                    <Label text="Preferred Brands"
+                           styleClass="preference-title"/>
+
+                    <ListView fx:id="brandsList"
+                              prefHeight="130"/>
+
+                    <HBox spacing="8">
+                        <TextField fx:id="brandField"
+                                   promptText="Enter brand"
+                                   HBox.hgrow="ALWAYS"/>
+
+                        <Button text="Add"
+                                onAction="#addBrand"
+                                styleClass="primary-button"/>
+                    </HBox>
+
+                    <Button text="Remove Selected"
+                            onAction="#removeBrand"
+                            styleClass="remove-button"/>
+                </VBox>
+
+                <!-- Allergies -->
+                <VBox GridPane.rowIndex="1"
+                      GridPane.columnIndex="0"
+                      spacing="10"
+                      styleClass="preference-card">
+
+                    <Label text="Allergies"
+                           styleClass="preference-title"/>
+
+                    <ListView fx:id="allergiesList"
+                              prefHeight="130"/>
+
+                    <HBox spacing="8">
+                        <TextField fx:id="allergyField"
+                                   promptText="Enter allergy"
+                                   HBox.hgrow="ALWAYS"/>
+
+                        <Button text="Add"
+                                onAction="#addAllergy"
+                                styleClass="primary-button"/>
+                    </HBox>
+
+                    <Button text="Remove Selected"
+                            onAction="#removeAllergy"
+                            styleClass="remove-button"/>
+                </VBox>
+
+                <!-- Dietary Restrictions -->
+                <VBox GridPane.rowIndex="1"
+                      GridPane.columnIndex="1"
+                      spacing="10"
+                      styleClass="preference-card">
+
+                    <Label text="Dietary Restrictions"
+                           styleClass="preference-title"/>
+
+                    <ListView fx:id="dietList"
+                              prefHeight="130"/>
+
+                    <HBox spacing="8">
+                        <TextField fx:id="dietField"
+                                   promptText="Enter restriction"
+                                   HBox.hgrow="ALWAYS"/>
+
+                        <Button text="Add"
+                                onAction="#addDiet"
+                                styleClass="primary-button"/>
+                    </HBox>
+
+                    <Button text="Remove Selected"
+                            onAction="#removeDiet"
+                            styleClass="remove-button"/>
+                </VBox>
+
+            </GridPane>
+
+            <!-- Excluded Items -->
+            <VBox spacing="10"
+                  styleClass="preference-card">
+
+                <Label text="Excluded Items"
+                       styleClass="preference-title"/>
+
+                <ListView fx:id="excludedList"
+                          prefHeight="120"/>
+
+                <HBox spacing="8">
+
+                    <TextField fx:id="excludedField"
+                               promptText="Enter an item to exclude"
+                               HBox.hgrow="ALWAYS"/>
+
+                    <Button text="Add"
+                            onAction="#addExcluded"
+                            styleClass="primary-button"/>
+
+                    <Button text="Remove Selected"
+                            onAction="#removeExcluded"
+                            styleClass="remove-button"/>
+                </HBox>
+
+            </VBox>
+
+            <HBox spacing="15"
+                  alignment="CENTER_RIGHT">
+
+                <Label fx:id="statusLabel"
+                       text="Changes are not saved yet."
+                       styleClass="muted-label"
+                       wrapText="true"/>
+
+                <Button text="Save Preferences"
+                        onAction="#savePreferences"
+                        styleClass="primary-button"/>
+
+            </HBox>
+
+        </VBox>
+    </content>
+</ScrollPane>

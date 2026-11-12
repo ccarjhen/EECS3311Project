@@ -3,23 +3,23 @@
 <?import javafx.scene.layout.*?>
 
 <ScrollPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="grocery.gui.HomeController"
             fitToWidth="true"
             styleClass="page-scroll">
 
     <content>
-        <VBox spacing="28" styleClass="page-content">
+        <VBox spacing="25" styleClass="page-content">
 
             <Label text="What are you shopping for?"
                    styleClass="section-title"/>
 
-            <VBox spacing="18"
-                  styleClass="request-card">
+            <VBox spacing="18" styleClass="request-card">
 
                 <Label text="Shopping Request"
                        styleClass="field-label"/>
 
                 <TextArea fx:id="requestField"
-                          promptText="E.g. I need groceries for taco night for 4 people..."
+                          promptText="E.g. I need milk, bread and eggs for breakfast"
                           prefRowCount="5"
                           wrapText="true"
                           styleClass="request-input"/>
@@ -38,22 +38,28 @@
 
                     <Region HBox.hgrow="ALWAYS"/>
 
-                    <Button text="✨ Generate Plan"
-                            disable="true"
-                            styleClass="primary-button"/>
-
-                    <Button text="Load Sample Plan"
-                            disable="true"
+                    <Button fx:id="generateButton"
+                            text="Generate Plan"
+                            onAction="#generatePlan"
                             styleClass="primary-button"/>
 
                 </HBox>
 
+                <ProgressIndicator fx:id="loadingIndicator"
+                                   visible="false"
+                                   managed="false"
+                                   prefWidth="35"
+                                   prefHeight="35"/>
+
+                <Label fx:id="statusLabel"
+                       text=""
+                       wrapText="true"
+                       styleClass="muted-label"/>
+
             </VBox>
 
-            <Label text="Recent Plans"
-                   styleClass="section-title"/>
-
-            <Label text="No saved plans yet."
+            <Label text="AI-generated plans use sample catalogue prices. Actual prices and availability may differ."
+                   wrapText="true"
                    styleClass="muted-label"/>
 
         </VBox>

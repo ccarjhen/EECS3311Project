@@ -1,12 +1,11 @@
-
 package grocery.gui;
 
-import java.io.IOException;
-
+import grocery.model.ShoppingPlan;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 
 public class MainController {
@@ -19,12 +18,24 @@ public class MainController {
     @FXML private Button preferencesButton;
     @FXML private Button checklistsButton;
 
+    private ShoppingPlan currentPlan;
+    private ChecklistController activeChecklistController;
+
     @FXML
     public void initialize() {
         showHome();
     }
 
+    public void setCurrentPlan(ShoppingPlan plan) {
+        this.currentPlan = plan;
+    }
+
+    public ShoppingPlan getCurrentPlan() {
+        return currentPlan;
+    }
+
     private void loadPage(String page) {
+
         try {
             FXMLLoader loader = new FXMLLoader(
                 getClass().getResource(
@@ -33,17 +44,67 @@ public class MainController {
             );
 
             Node view = loader.load();
+
+            Object controller = loader.getController();
+
+            if (controller instanceof HomeController home) {
+                home.setMainController(this);
+            }
+
+            if (controller instanceof PlanController plan) {
+                plan.setMainController(this);
+                plan.setShoppingPlan(currentPlan);
+            }
+
+            if (controller instanceof ChecklistController checklist) {
+                checklist.setMainController(this);
+                checklist.setShoppingPlan(currentPlan);
+            }
+
+            if (controller instanceof HomeController home) {
+                home.setMainController(this);
+            }
+
+            if (controller instanceof PlanController plan) {
+                plan.setMainController(this);
+                plan.setShoppingPlan(currentPlan);
+            }
+
+            if (controller instanceof ChecklistController checklist) {
+                checklist.setMainController(this);
+                checklist.setShoppingPlan(currentPlan);
+            }
+
+            // Remove observer from the previous checklist screen.
+            if (activeChecklistController != null) {
+                activeChecklistController.detach();
+                activeChecklistController = null;
+            }
+
+            if (controller instanceof ChecklistController checklist) {
+                activeChecklistController = checklist;
+            }
+
             contentArea.getChildren().setAll(view);
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
+
+            Throwable cause = e;
+            while (cause.getCause() != null) {
+                cause = cause.getCause();
+            }
+
             contentArea.getChildren().setAll(
-                new javafx.scene.control.Label(
-                    "Unable to load " + page + " page."
+                new Label(
+                    "Unable to load " + page + " page:\n"
+                    + cause.getMessage()
                 )
             );
         }
     }
+
+
 
     private void setActiveButton(Button active) {
 
@@ -63,31 +124,31 @@ public class MainController {
     }
 
     @FXML
-    private void showHome() {
+    public void showHome() {
         loadPage("home");
         setActiveButton(homeButton);
     }
 
     @FXML
-    private void showPlan() {
+    public void showPlan() {
         loadPage("plan");
         setActiveButton(planButton);
     }
 
     @FXML
-    private void showProducts() {
+    public void showProducts() {
         loadPage("products");
         setActiveButton(productsButton);
     }
 
     @FXML
-    private void showPreferences() {
+    public void showPreferences() {
         loadPage("preferences");
         setActiveButton(preferencesButton);
     }
 
     @FXML
-    private void showChecklists() {
+    public void showChecklists() {
         loadPage("checklists");
         setActiveButton(checklistsButton);
     }

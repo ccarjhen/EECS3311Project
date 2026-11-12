@@ -1,14 +1,133 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 
-<VBox xmlns:fx="http://javafx.com/fxml"
-      spacing="15"
-      styleClass="page-content">
+<ScrollPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="grocery.gui.ChecklistController"
+            fitToWidth="true"
+            styleClass="page-scroll">
 
-    <Label text="Checklists"
-           styleClass="section-title"/>
+    <content>
+        <VBox spacing="22" styleClass="page-content">
 
-    <Label text="Your generated checklists will appear here."/>
+            <Label text="Checklists"
+                   styleClass="section-title"/>
 
-</VBox>
+            <Label text="Saved Checklists"
+                   styleClass="field-label"/>
+
+            <FlowPane fx:id="savedTabs"
+                      hgap="10"
+                      vgap="10"
+                      prefWrapLength="900"/>
+
+            <Separator/>
+
+            <HBox alignment="CENTER_LEFT" spacing="15">
+                <VBox spacing="8">
+                    <Label fx:id="planNameLabel"
+                           text="No checklist selected"
+                           styleClass="checklist-name"/>
+
+                    <Label fx:id="totalLabel"
+                           text="\$0.00"
+                           styleClass="checklist-total"/>
+                </VBox>
+                <Region HBox.hgrow="ALWAYS"/>
+            </HBox>
+
+            <HBox alignment="CENTER_LEFT" spacing="12">
+                <Label fx:id="progressLabel"
+                       text="0 of 0 purchased"
+                       styleClass="muted-label"/>
+
+                <Region HBox.hgrow="ALWAYS"/>
+
+                <Label fx:id="percentageLabel"
+                       text="0%"
+                       styleClass="muted-label"/>
+            </HBox>
+
+            <ProgressBar fx:id="checklistProgress"
+                         progress="0"
+                         prefWidth="900"
+                         prefHeight="12"
+                         maxWidth="Infinity"
+                         styleClass="checklist-progress"/>
+
+            <ListView fx:id="checklistView"
+                      prefHeight="230"
+                      styleClass="checklist-list"/>
+
+            <Label text="Edit Checklist"
+                   styleClass="field-label"/>
+
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <TextField fx:id="itemNameField"
+                           promptText="Item"
+                           HBox.hgrow="ALWAYS"/>
+
+                <TextField fx:id="categoryField"
+                           promptText="Category"
+                           prefWidth="135"/>
+
+                <TextField fx:id="quantityField"
+                           text="1"
+                           prefWidth="65"/>
+
+                <Button text="Add Item"
+                        onAction="#addItem"
+                        styleClass="secondary-button"/>
+            </HBox>
+
+            <HBox spacing="10">
+                <TextField fx:id="newQuantityField"
+                           promptText="New quantity"
+                           prefWidth="130"/>
+
+                <Button text="Change Quantity"
+                        onAction="#changeQuantity"
+                        styleClass="secondary-button"/>
+
+                <Button text="Remove Selected"
+                        onAction="#removeItem"
+                        styleClass="remove-button"/>
+            </HBox>
+
+            <VBox spacing="10">
+
+                <Button text="Save Checklist"
+                        maxWidth="Infinity"
+                        onAction="#saveChecklist"
+                        styleClass="checklist-action-button"/>
+
+                <HBox spacing="10">
+
+                    <Button text="Rename"
+                            HBox.hgrow="ALWAYS"
+                            maxWidth="Infinity"
+                            onAction="#renameChecklist"
+                            styleClass="checklist-action-button"/>
+
+                    <Button text="Delete"
+                            HBox.hgrow="ALWAYS"
+                            maxWidth="Infinity"
+                            onAction="#deleteChecklist"
+                            styleClass="checklist-action-button"/>
+                </HBox>
+
+                <Button text="View Plan"
+                        maxWidth="Infinity"
+                        onAction="#viewPlan"
+                        styleClass="checklist-action-button"/>
+
+            </VBox>
+
+            <Label fx:id="statusLabel"
+                   text="Select a saved checklist or generate a plan."
+                   wrapText="true"
+                   styleClass="muted-label"/>
+
+        </VBox>
+    </content>
+</ScrollPane>

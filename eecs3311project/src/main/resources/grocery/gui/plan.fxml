@@ -1,14 +1,136 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 
-<VBox xmlns:fx="http://javafx.com/fxml"
-      spacing="15"
-      styleClass="page-content">
+<ScrollPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="grocery.gui.PlanController"
+            fitToWidth="true"
+            styleClass="page-scroll">
 
-    <Label text="Shopping Plan"
-           styleClass="section-title"/>
+    <content>
+        <VBox spacing="20" styleClass="page-content">
 
-    <Label text="Your generated shopping plan will appear here."/>
+            <Label fx:id="planNameLabel"
+                   text="Shopping Plan"
+                   styleClass="section-title"/>
 
-</VBox>
+            <Label fx:id="totalLabel"
+                   text="\$0.00"
+                   styleClass="total-label"/>
+
+            <Label fx:id="budgetLabel"
+                   text="No shopping plan generated."
+                   styleClass="muted-label"/>
+
+            <ProgressBar fx:id="budgetProgress"
+                    progress="0"
+                    prefWidth="1000"
+                    prefHeight="18"
+                    styleClass="budget-progress"/>
+
+            <HBox alignment="CENTER_LEFT">
+                <Label fx:id="percentLabel"
+                       text="0% of budget"
+                       styleClass="muted-label"/>
+
+                <Region HBox.hgrow="ALWAYS"/>
+
+                <Label fx:id="remainingLabel"
+                       text="\$0.00 remaining"
+                       styleClass="muted-label"/>
+            </HBox>
+
+            <TableView fx:id="itemsTable"
+                    prefHeight="330"
+                    maxWidth="Infinity"
+                    styleClass="shopping-table">
+
+                <columns>
+                    <TableColumn fx:id="itemColumn"
+                                text="Item"
+                                resizable="false"
+                                sortable="false"
+                                prefWidth="180"/>
+
+                    <TableColumn fx:id="quantityColumn"
+                                text="Qty"
+                                resizable="false"
+                                sortable="false"
+                                prefWidth="70"/>
+
+                    <TableColumn fx:id="productColumn"
+                                text="Product"
+                                resizable="false"
+                                sortable="false"
+                                prefWidth="280"/>
+
+                    <TableColumn fx:id="storeColumn"
+                                text="Store"
+                                resizable="false"
+                                sortable="false"
+                                prefWidth="150"/>
+
+                    <TableColumn fx:id="saleColumn"
+                                text="Sale?"
+                                resizable="false"
+                                sortable="false"
+                                prefWidth="100"/>
+
+                    <TableColumn fx:id="priceColumn"
+                                text="Price"
+                                resizable="false"
+                                sortable="false"
+                                prefWidth="120"/>
+                </columns>
+
+            </TableView>
+
+
+
+            <HBox spacing="15" alignment="CENTER_LEFT">
+
+                <Button fx:id="alternativeButton"
+                        text="Find Alternative"
+                        onAction="#findAlternative"
+                        disable="true"
+                        styleClass="alternative-button"/>
+
+                <Label text="Select a product above to find alternatives."
+                    styleClass="muted-label"/>
+
+            </HBox>
+
+
+            <!-- Optimization Options -->
+            
+            <Label text="Optimization"
+                styleClass="section-title"/>
+
+            <HBox spacing="15">
+
+                <Button fx:id="cheapestButton"
+                        text="Cheapest"
+                        onAction="#optimizeCheapest"
+                        styleClass="secondary-button"/>
+
+                <Button fx:id="fewestStoresButton"
+                        text="Fewest Stores"
+                        onAction="#optimizeFewestStores"
+                        styleClass="secondary-button"/>
+
+                <Button fx:id="oneStoreButton"
+                        text="One Store"
+                        onAction="#optimizeOneStore"
+                        styleClass="secondary-button"/>
+
+            </HBox>
+
+            <Label fx:id="optimizationStatusLabel"
+                text="Generate a shopping plan to start optimizing."
+                wrapText="true"
+                styleClass="muted-label"/>
+
+
+        </VBox>
+    </content>
+</ScrollPane>

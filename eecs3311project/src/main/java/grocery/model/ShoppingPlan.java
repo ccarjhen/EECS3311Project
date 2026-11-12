@@ -97,4 +97,20 @@ public class ShoppingPlan {
         item.setQuantity(quantity);
         notifyObservers();
     }
+
+
+    public void setItemPurchased(
+            ShoppingItem item,
+            boolean purchased) {
+
+        if (!shoppingItems.contains(item)) {
+            throw new IllegalArgumentException(
+                "Item does not belong to this plan."
+            );
+        }
+
+        item.setPurchased(purchased);
+        notifyObservers();
+    }
+
 }   

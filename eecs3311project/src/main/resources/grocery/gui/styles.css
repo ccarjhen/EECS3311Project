@@ -1,25 +1,35 @@
 
-/* =====================================
-   AI GROCERY COMPANION - COLOUR PALETTE
-   =====================================
+/* ==================================================
+   AI GROCERY COMPANION
+   MAIN STYLESHEET
 
-   Ink Black       #04151F
-   Dark Slate Grey #183A37
-   Wheat           #EFD6AC
-   Burnt Orange    #C44900
-   Midnight Violet #432534
-*/
+   Colour Palette:
+   Ink Black        #04151F
+   Dark Slate Grey  #183A37
+   Wheat            #EFD6AC
+   Burnt Orange     #C44900
+   Midnight Violet  #432534
+   ================================================== */
+
+
+/* ==================================================
+   1. GENERAL APPLICATION
+   ================================================== */
 
 .root {
     -fx-font-family: "Arial";
     -fx-background-color: #FFFFFF;
+    -fx-font-size: 14px;
 }
-
-/* MAIN WINDOW */
 
 .main-container {
     -fx-background-color: #FFFFFF;
 }
+
+
+/* ==================================================
+   2. HEADER AND APPLICATION TITLE
+   ================================================== */
 
 .header {
     -fx-padding: 30 40 25 40;
@@ -33,36 +43,43 @@
     -fx-text-fill: #432534;
 }
 
-/* NAVIGATION BUTTONS */
+
+/* ==================================================
+   3. NAVIGATION BUTTONS
+   ================================================== */
 
 .nav-button {
     -fx-background-color: #EFD6AC;
     -fx-text-fill: #183A37;
+
     -fx-border-color: #C44900;
-    -fx-border-width: 1.3px;
-    -fx-border-radius: 30px;
-    -fx-background-radius: 30px;
-    -fx-padding: 12px 20px;
+    -fx-border-width: 1px;
+    -fx-border-radius: 30;
+    -fx-background-radius: 30;
+
+    -fx-padding: 12 20;
     -fx-font-size: 15px;
-    -fx-font-weight: 500;
-    -fx-cursor: hand;
+    -fx-font-weight: bold;
+
     -fx-alignment: CENTER;
+    -fx-cursor: hand;
+    -fx-graphic-text-gap: 10;
 }
 
-/* NAVIGATION ICONS */
+/* Navigation Icons */
 
 .nav-button .ikonli-font-icon {
     -fx-icon-color: #183A37;
     -fx-icon-size: 20px;
 }
 
-/* HOVER */
+/* Hover State */
 
 .nav-button:hover {
     -fx-background-color: #F6E4CA;
 }
 
-/* ACTIVE NAVIGATION */
+/* Active Navigation Button */
 
 .nav-button.active-button {
     -fx-background-color: #C44900;
@@ -74,58 +91,120 @@
     -fx-icon-color: #FFFFFF;
 }
 
-/* PAGE CONTAINER */
+.nav-button.active-button:hover {
+    -fx-background-color: #A83D00;
+}
+
+
+/* ==================================================
+   4. PAGE LAYOUT
+   ================================================== */
 
 .content-area {
     -fx-padding: 15 40 30 40;
 }
 
-/* PAGE STYLING */
-
 .page-scroll {
     -fx-background-color: transparent;
     -fx-background: transparent;
+    -fx-border-color: transparent;
+}
+
+.page-scroll > .viewport {
+    -fx-background-color: transparent;
 }
 
 .page-content {
     -fx-padding: 20 5 30 5;
 }
 
+
+/* ==================================================
+   5. LABELS AND TYPOGRAPHY
+   ================================================== */
+
 .section-title {
     -fx-font-size: 28px;
+    -fx-font-weight: bold;
     -fx-text-fill: #04151F;
 }
 
 .field-label {
     -fx-font-size: 18px;
+    -fx-font-weight: bold;
     -fx-text-fill: #04151F;
 }
 
-/* SHOPPING REQUEST */
+.muted-label {
+    -fx-font-size: 15px;
+    -fx-text-fill: #666666;
+}
+
+.total-label {
+    -fx-font-size: 58px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #04151F;
+}
+
+
+/* ==================================================
+   6. HOME PAGE - SHOPPING REQUEST
+   ================================================== */
 
 .request-card {
     -fx-padding: 35;
     -fx-background-color: #FBF4E8;
-    -fx-background-radius: 35;
+    -fx-background-radius: 25;
+
     -fx-border-color: #EFD6AC;
-    -fx-border-radius: 35;
+    -fx-border-radius: 25;
+    -fx-border-width: 1px;
 }
 
 .request-input {
     -fx-font-size: 16px;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-focus-color: #C44900;
+    -fx-faint-focus-color: transparent;
 }
 
 .request-input .content {
     -fx-background-color: #F3EBDD;
 }
 
-/* PRIMARY BUTTONS */
+.text-field {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 10;
+
+    -fx-border-color: #EFD6AC;
+    -fx-border-radius: 10;
+    -fx-border-width: 1px;
+
+    -fx-padding: 10 12;
+    -fx-font-size: 14px;
+}
+
+.text-field:focused {
+    -fx-border-color: #C44900;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+
+/* ==================================================
+   7. PRIMARY BUTTONS
+   ================================================== */
 
 .primary-button {
     -fx-background-color: #C44900;
     -fx-text-fill: #FFFFFF;
+
     -fx-background-radius: 25;
     -fx-padding: 12 22;
+
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
     -fx-cursor: hand;
 }
 
@@ -133,13 +212,28 @@
     -fx-background-color: #A53C00;
 }
 
-/* SECONDARY BUTTONS */
+.primary-button:pressed {
+    -fx-background-color: #873100;
+}
+
+.primary-button:disabled {
+    -fx-opacity: 0.5;
+}
+
+
+/* ==================================================
+   8. SECONDARY / OPTIMIZATION BUTTONS
+   ================================================== */
 
 .secondary-button {
     -fx-background-color: #183A37;
     -fx-text-fill: #FFFFFF;
+
     -fx-background-radius: 25;
     -fx-padding: 12 22;
+
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
     -fx-cursor: hand;
 }
 
@@ -147,9 +241,637 @@
     -fx-background-color: #27554F;
 }
 
-/* OTHER LABELS */
+.secondary-button:pressed {
+    -fx-background-color: #102C29;
+}
 
-.muted-label {
+.secondary-button:disabled {
+    -fx-opacity: 0.5;
+}
+
+
+/* ==================================================
+   9. FIND ALTERNATIVE BUTTON
+   ================================================== */
+
+.alternative-button {
+    -fx-background-color: #C44900;
+    -fx-text-fill: #FFFFFF;
+
+    -fx-background-radius: 25;
+    -fx-padding: 12 24;
+
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+.alternative-button:hover {
+    -fx-background-color: #A83D00;
+}
+
+.alternative-button:pressed {
+    -fx-background-color: #873100;
+}
+
+.alternative-button:disabled {
+    -fx-opacity: 0.5;
+}
+
+
+/* ==================================================
+   10. SHOPPING PLAN - BUDGET PROGRESS BAR
+   ================================================== */
+
+.budget-progress {
+    -fx-accent: #C44900;
+
+    -fx-pref-height: 16px;
+    -fx-min-height: 16px;
+    -fx-max-height: 16px;
+
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+/* Background Track */
+
+.budget-progress .track {
+    -fx-background-color: #EFD6AC;
+    -fx-background-radius: 20;
+    -fx-background-insets: 0;
+}
+
+/* Filled Portion */
+
+.budget-progress .bar {
+    -fx-background-color: #C44900;
+    -fx-background-radius: 20;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+/* Optional Over-Budget Styling */
+
+.budget-progress.over-budget .bar {
+    -fx-background-color: #B3261E;
+}
+
+
+/* ==================================================
+   11. SHOPPING PLAN - MINIMAL TABLE
+   ================================================== */
+
+/*
+   Design Goals:
+   - No overlapping rounded borders
+   - No visible vertical gridlines
+   - No column-resize handles
+   - Horizontal row separators
+   - Consistent column header background
+   - Subtle hover and selection states
+*/
+
+/* Main Table Container */
+
+.shopping-table {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 0;
+
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-border-radius: 0;
+
+    -fx-padding: 0;
+
+    -fx-table-cell-border-color: transparent;
+
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+/* Table Background */
+
+.shopping-table .virtual-flow {
+    -fx-background-color: #FFFFFF;
+}
+
+.shopping-table .virtual-flow .clipped-container {
+    -fx-background-color: #FFFFFF;
+}
+
+/* Column Header Background */
+
+.shopping-table .column-header-background {
+    -fx-background-color: #183A37;
+    -fx-background-radius: 0;
+    -fx-padding: 0;
+}
+
+/* Column Headers */
+
+.shopping-table .column-header {
+    -fx-background-color: #183A37;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 10 4;
+}
+
+/* Header Filler */
+
+.shopping-table .filler {
+    -fx-background-color: #183A37;
+    -fx-border-color: transparent;
+}
+
+/* Header Text */
+
+.shopping-table .column-header .label {
+    -fx-text-fill: #FFFFFF;
+
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 4 10;
+}
+
+/* Hide Column Resize Line */
+
+.shopping-table .column-header .column-resize-line {
+    -fx-background-color: transparent;
+    -fx-pref-width: 0;
+}
+
+/* Table Rows */
+
+.shopping-table .table-row-cell {
+    -fx-background-color: #FFFFFF;
+    -fx-background-insets: 0;
+
+    -fx-border-color:
+        transparent transparent #E5E5E5 transparent;
+
+    -fx-border-width: 0 0 1 0;
+    -fx-cell-size: 50px;
+}
+
+/* Alternating Rows */
+
+.shopping-table .table-row-cell:odd {
+    -fx-background-color: #FBF9F5;
+}
+
+/* Hover Highlight */
+
+.shopping-table .table-row-cell:filled:hover {
+    -fx-background-color: #F4E8D5;
+    -fx-cursor: hand;
+}
+
+/* Selected Row */
+
+.shopping-table .table-row-cell:filled:selected {
+    -fx-background-color: #EFD6AC;
+}
+
+.shopping-table .table-row-cell:filled:selected .text {
+    -fx-fill: #04151F;
+}
+
+/* Table Cells */
+
+.shopping-table .table-cell {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+
+    -fx-text-fill: #04151F;
+    -fx-font-size: 14px;
+
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 8 12;
+}
+
+/* Remove Focus Outlines */
+
+.shopping-table .table-row-cell:focused,
+.shopping-table .table-cell:focused {
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+}
+
+/* Empty Rows */
+
+.shopping-table .table-row-cell:empty {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: transparent;
+}
+
+.shopping-table .table-row-cell:empty .table-cell {
+    -fx-border-color: transparent;
+}
+
+/* Empty Table Placeholder */
+
+.shopping-table .placeholder {
+    -fx-background-color: #FFFFFF;
+}
+
+.shopping-table .placeholder .label {
+    -fx-text-fill: #777777;
+    -fx-font-size: 14px;
+}
+
+/* Table Scrollbars */
+
+.shopping-table .scroll-bar:vertical,
+.shopping-table .scroll-bar:horizontal {
+    -fx-background-color: #FFFFFF;
+}
+
+.shopping-table .scroll-bar .thumb {
+    -fx-background-color: #D8D8D8;
+    -fx-background-radius: 10;
+}
+
+.shopping-table .scroll-bar .thumb:hover {
+    -fx-background-color: #B8B8B8;
+}
+
+/* Table Corner */
+
+.shopping-table .corner {
+    -fx-background-color: #FFFFFF;
+}
+
+
+/* ==================================================
+   12. DIALOGS
+   ================================================== */
+
+.dialog-pane {
+    -fx-background-color: #FFFFFF;
+}
+
+.dialog-pane .header-panel {
+    -fx-background-color: #FBF4E8;
+}
+
+.dialog-pane .header-panel .label {
+    -fx-text-fill: #04151F;
     -fx-font-size: 16px;
-    -fx-text-fill: #666666;
+    -fx-font-weight: bold;
+}
+
+.dialog-pane .button {
+    -fx-background-color: #183A37;
+    -fx-text-fill: #FFFFFF;
+    -fx-background-radius: 15;
+    -fx-cursor: hand;
+}
+
+.dialog-pane .button:hover {
+    -fx-background-color: #27554F;
+}
+
+
+/* =====================================
+   PRODUCT SEARCH
+   ===================================== */
+
+.combo-box {
+    -fx-background-color: #FBF4E8;
+    -fx-background-radius: 10;
+    -fx-border-color: #EFD6AC;
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+    -fx-cursor: hand;
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: #04151F;
+    -fx-padding: 9 12;
+}
+
+.combo-box:focused {
+    -fx-border-color: #C44900;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #EFD6AC;
+}
+
+.combo-box-popup .list-cell:hover {
+    -fx-background-color: #EFD6AC;
+}
+
+.shopping-table .table-row-cell:filled:hover {
+    -fx-background-color: #F4E8D5;
+}
+
+
+/* =========================================
+   PREFERENCES PAGE
+   ========================================= */
+
+.preference-card {
+    -fx-background-color: #FBF4E8;
+    -fx-background-radius: 18;
+
+    -fx-border-color: #EFD6AC;
+    -fx-border-radius: 18;
+    -fx-border-width: 1;
+
+    -fx-padding: 22;
+}
+
+.preference-title {
+    -fx-font-size: 19px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #183A37;
+}
+
+/* Preference Lists */
+
+.preference-card .list-view {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 10;
+
+    -fx-border-color: #EFD6AC;
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+
+    -fx-padding: 4;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.preference-card .list-cell {
+    -fx-background-color: #FFFFFF;
+    -fx-text-fill: #04151F;
+    -fx-font-size: 14px;
+    -fx-padding: 9 12;
+}
+
+.preference-card .list-cell:filled:hover {
+    -fx-background-color: #F4E8D5;
+    -fx-cursor: hand;
+}
+
+.preference-card .list-cell:filled:selected {
+    -fx-background-color: #EFD6AC;
+    -fx-text-fill: #04151F;
+}
+
+/* Remove Buttons */
+
+.remove-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #C44900;
+    -fx-border-color: #C44900;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-padding: 9 16;
+    -fx-cursor: hand;
+}
+
+.remove-button:hover {
+    -fx-background-color: #F4E8D5;
+}
+
+
+/* =========================================
+   SHOPPING CHECKLIST
+   ========================================= */
+
+/* Checklist progress */
+
+.checklist-progress {
+    -fx-pref-height: 14px;
+    -fx-min-height: 14px;
+    -fx-max-height: 14px;
+    -fx-padding: 0;
+}
+
+.checklist-progress .track {
+    -fx-background-color: #EFD6AC;
+    -fx-background-radius: 20;
+    -fx-background-insets: 0;
+}
+
+.checklist-progress .bar {
+    -fx-background-color: #183A37;
+    -fx-background-radius: 20;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+/* Checklist container */
+
+.checklist-list {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #EFD6AC;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-border-width: 1;
+    -fx-padding: 0;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+/* Checklist rows */
+
+.checklist-list .list-cell {
+    -fx-background-color: #FFFFFF;
+    -fx-text-fill: #04151F;
+    -fx-padding: 14 16;
+    -fx-font-size: 15px;
+}
+
+.checklist-list .list-cell:odd {
+    -fx-background-color: #FBF9F5;
+}
+
+.checklist-list .list-cell:filled:hover {
+    -fx-background-color: #F4E8D5;
+    -fx-cursor: hand;
+}
+
+.checklist-list .list-cell:filled:selected {
+    -fx-background-color: #EFD6AC;
+}
+
+.checklist-list .list-cell:empty {
+    -fx-background-color: #FFFFFF;
+}
+
+/* Checkboxes */
+
+.checklist-list .check-box .box {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #183A37;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
+    -fx-padding: 3;
+}
+
+.checklist-list .check-box:selected .box {
+    -fx-background-color: #183A37;
+}
+
+.checklist-list .check-box:selected .mark {
+    -fx-background-color: #FFFFFF;
+}
+
+.checklist-list .check-box:disabled {
+    -fx-opacity: 1;
+}
+
+/* Progress text */
+
+.checklist-progress-label {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #183A37;
+}
+
+
+/* =========================================
+   SAVED CHECKLISTS
+   ========================================= */
+
+.checklist-name {
+    -fx-font-size: 21px;
+    -fx-text-fill: #04151F;
+}
+
+.checklist-total {
+    -fx-font-size: 43px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #04151F;
+}
+
+/* Saved checklist tabs */
+
+.saved-checklist-tab {
+    -fx-background-color: #D8E1DF;
+    -fx-text-fill: #183A37;
+    -fx-border-color: #183A37;
+    -fx-border-width: 0.7px;
+    -fx-border-radius: 25;
+    -fx-background-radius: 25;
+    -fx-padding: 9 22;
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+}
+
+.saved-checklist-tab:hover {
+    -fx-background-color: #EFD6AC;
+}
+
+.saved-checklist-tab.selected-tab {
+    -fx-background-color: #183A37;
+    -fx-text-fill: #FFFFFF;
+    -fx-border-color: #183A37;
+}
+
+/* Checklist items */
+
+.checklist-list {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 0;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.checklist-list .list-cell {
+    -fx-background-color: #FFFFFF;
+    -fx-padding: 12 10;
+    -fx-font-size: 15px;
+    -fx-text-fill: #04151F;
+    -fx-border-color:
+        transparent transparent #E5E5E5 transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.checklist-list .list-cell:odd {
+    -fx-background-color: #FBF9F5;
+}
+
+.checklist-list .list-cell:filled:hover {
+    -fx-background-color: #F4E8D5;
+}
+
+.checklist-list .list-cell:filled:selected {
+    -fx-background-color: #EFD6AC;
+}
+
+.checklist-list .list-cell:empty {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: transparent;
+}
+
+/* Checkboxes */
+
+.checklist-list .check-box .box {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #C44900;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 2;
+    -fx-background-radius: 2;
+    -fx-padding: 4;
+}
+
+.checklist-list .check-box:selected .box {
+    -fx-background-color: #C44900;
+}
+
+.checklist-list .check-box:selected .mark {
+    -fx-background-color: #FFFFFF;
+}
+
+/* Checklist progress */
+
+.checklist-progress {
+    -fx-pref-height: 12px;
+    -fx-min-height: 12px;
+    -fx-max-height: 12px;
+    -fx-padding: 0;
+}
+
+.checklist-progress .track {
+    -fx-background-color: #EFD6AC;
+    -fx-background-radius: 20;
+    -fx-background-insets: 0;
+}
+
+.checklist-progress .bar {
+    -fx-background-color: #183A37;
+    -fx-background-radius: 20;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+/* Save / Rename / Delete / View Plan */
+
+.checklist-action-button {
+    -fx-background-color: #C44900;
+    -fx-text-fill: #FFFFFF;
+    -fx-background-radius: 25;
+    -fx-padding: 12 20;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+.checklist-action-button:hover {
+    -fx-background-color: #A53C00;
+}
+
+.checklist-action-button:pressed {
+    -fx-background-color: #873100;
 }
