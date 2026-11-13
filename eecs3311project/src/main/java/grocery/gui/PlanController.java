@@ -133,7 +133,7 @@ public class PlanController {
     public void setShoppingPlan(ShoppingPlan plan) {
         currentPlan = plan;
 
-        if (mainController != null && plan != null) {
+        if (mainController != null) {
             String selected = mainController.getActiveOptimization();
             switch (selected) {
                 case "Cheapest" ->
@@ -150,9 +150,8 @@ public class PlanController {
         cheapestButton.setDisable(!hasItems);
         fewestStoresButton.setDisable(!hasItems);
         oneStoreButton.setDisable(!hasItems);
-        refreshPlanButton.setDisable(plan == null);
+        refreshPlanButton.setDisable(mainController == null || !mainController.hasOriginalGeneratedPlan());
         if (plan == null) {
-            highlightOptimization(null);
             planNameLabel.setText("Shopping Plan");
             itemsTable.getItems().clear();
             totalLabel.setText("$0.00");
@@ -250,6 +249,7 @@ public class PlanController {
     private void applyOptimization(String title, OptimizationStrat strategy) {
         if (currentPlan == null) { showError("Generate a plan first."); return; }
         try {
+            System.out.println("[PLAN] Applying " + title + " optimization...");
             // Always work from stable requirements, not the previous strategy's selected products.
             ShoppingPlan baseline = mainController == null
                 ? currentPlan : mainController.getOptimizationBasePlan();
@@ -259,6 +259,8 @@ public class PlanController {
             if (mainController != null) mainController.setCurrentPlan(optimized);
             setShoppingPlan(optimized);
             optimizationStatusLabel.setText(title + " optimization applied.");
+            System.out.printf("[PLAN] %s optimization completed. Estimated total: $%.2f CAD%n",
+                title, optimized.calculateTotal());
 
             String mode;
 
@@ -280,6 +282,7 @@ public class PlanController {
             }
 
         } catch (RuntimeException ex) {
+            System.err.println("[PLAN] " + title + " optimization failed: " + ex.getMessage());
             optimizationStatusLabel.setText(title + " optimization was not possible.");
             showError(ex.getMessage());
         }
@@ -320,6 +323,8 @@ public class PlanController {
         itemsTable.refresh();
         refreshBudget();
         optimizationStatusLabel.setText("Selected " + selected.name() + " (cached web result).");
+        System.out.println("[PLAN] Replaced product with " + selected.name()
+            + " from " + selected.store() + ".");
     }
 
     private static boolean sameProduct(WebProductListing listing, Product product) {
@@ -345,58 +350,29 @@ public class PlanController {
         }
         setShoppingPlan(currentPlan);
         optimizationStatusLabel.setText(selected.getName() + " removed.");
+        System.out.println("[PLAN] Removed item: " + selected.getName());
     }
 
-    
-    @FXML
-    private void refreshPlan() {
-        if (mainController == null
-                || mainController.getCurrentWebResult() == null) {
-            showError(
-                "No original AI-generated plan is available."
-            );
-            return;
-        }
-
-        // Confirm before discarding modifications.
-        Alert confirmation = new Alert(
-            Alert.AlertType.CONFIRMATION
-        );
-        confirmation.setTitle("Restore Original Plan");
-
-        confirmation.setHeaderText(
-            "Restore the original AI-generated shopping plan?"
-        );
-
-        confirmation.setContentText(
-            "This will undo product replacements, removals, "
-            + "additions, and optimization changes."
-        );
-
-        if (confirmation.showAndWait()
-                .orElse(ButtonType.CANCEL) != ButtonType.OK) {
+    @FXML private void refreshPlan() {
+        if (mainController == null || !mainController.hasOriginalGeneratedPlan()) {
+            showError("No original AI-generated plan is available to restore.");
             return;
         }
 
         try {
-            mainController.restoreOriginalPlan();
-            // Restore the original web alternatives.
-            setWebCandidates(
-                mainController.getWebCandidates()
-            );
-            // Display the restored shopping plan.
-            setShoppingPlan(
-                mainController.getCurrentPlan()
-            );
-            // Restore Cheapest button highlighting.
-            highlightOptimization(cheapestButton);
+            System.out.println("[PLAN] Restoring original AI-generated plan...");
+            ShoppingPlan restored = mainController.restoreOriginalPlan();
 
+            setWebCandidates(mainController.getWebCandidates());
+            setShoppingPlan(restored);
             optimizationStatusLabel.setText(
-                "Original shopping plan restored successfully."
-            );
-
-        } catch (RuntimeException e) {
-            showError(e.getMessage());
+                "Original AI-generated plan restored without a new web search.");
+            System.out.printf(
+                "[PLAN] Original plan restored. Estimated total: $%.2f CAD%n",
+                restored.calculateTotal());
+        } catch (RuntimeException ex) {
+            System.err.println("[PLAN] Restore failed: " + ex.getMessage());
+            showError(ex.getMessage());
         }
     }
 

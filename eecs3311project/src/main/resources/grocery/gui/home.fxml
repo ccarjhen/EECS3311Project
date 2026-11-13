@@ -57,11 +57,6 @@
                        styleClass="muted-label"/>
 
             </VBox>
-
-            <Label text="AI-generated plans use sample catalogue prices. Actual prices and availability may differ."
-                   wrapText="true"
-                   styleClass="muted-label"/>
-
         </VBox>
     </content>
 

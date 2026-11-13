@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -80,7 +81,6 @@ public class ShoppingAgent {
             - Use categories such as Dairy, Bakery, Produce,
               Meat, Breakfast, Beverages, or Other.
             - Only propose groceries relevant to the request.
-            - Generate no more than 10 distinct grocery items.
             - Do not invent prices, brands, promotions or stores.
             - Do not include Markdown or explanations.
             - Do not claim that products are allergy-safe.
@@ -307,7 +307,22 @@ public class ShoppingAgent {
             boolean useEstimatedPrices,
             boolean hasMembership,
             LocalDate date) throws Exception {
+        return createWebPlan(request, webSearch, extractor, useEstimatedPrices,
+                hasMembership, date, message -> System.out.println("[HOME] " + message));
+    }
 
+    public WebPlanResult createWebPlan(
+            ShoppingRequest request,
+            WebProductSearchService webSearch,
+            WebListingExtractor extractor,
+            boolean useEstimatedPrices,
+            boolean hasMembership,
+            LocalDate date,
+            Consumer<String> progress) throws Exception {
+
+        if (progress == null) progress = message -> {};
+        // Capture callback so that asynchronous tasks can safely reference it.
+        final Consumer<String> reporter = progress;
         if (request == null || webSearch == null ||
                 extractor == null || date == null) {
             throw new IllegalArgumentException(
@@ -316,7 +331,9 @@ public class ShoppingAgent {
         }
 
         
+        reporter.accept("Generating grocery item list...");
         List<RequestedItem> generatedItems = createItemList(request);
+        reporter.accept("AI generated " + generatedItems.size() + " grocery items.");
 
         List<RequestedItem> requestedItems =
             generatedItems.stream()
@@ -330,6 +347,8 @@ public class ShoppingAgent {
 
 
         // 2. Store all accepted web candidates.
+        // WebStoreAdapter webAdapter = new WebStoreAdapter();
+
         Map<String, List<WebProductListing>> candidatesByItem =
             new LinkedHashMap<>();
 
@@ -352,6 +371,9 @@ public class ShoppingAgent {
             );
         }
 
+        // --Limit the number of web searches per request.--
+        int searchLimit = Math.min(requestedItems.size(), 10);
+
         
         ExecutorService executor =
             Executors.newFixedThreadPool(2);
@@ -367,7 +389,8 @@ public class ShoppingAgent {
                         () -> searchOneItem(
                             item,
                             webSearch,
-                            extractor
+                            extractor,
+                            reporter
                         ),
                         executor
                     )
@@ -412,6 +435,7 @@ public class ShoppingAgent {
                 }
 
                 for (WebProductListing listing : candidates) {
+                    // webAdapter.addApprovedListing(listing);
                     acceptedListings.add(listing);
                 }
             }
@@ -453,6 +477,7 @@ public class ShoppingAgent {
         }
 
         // 7. Optimize using your existing Strategy pattern.
+        reporter.accept("Optimizing shopping plan...");
         ShoppingPlan optimizedPlan =
             new ShoppingPlan(
                 "AI Web Shopping Plan",
@@ -536,6 +561,7 @@ public class ShoppingAgent {
             );
         }
 
+        reporter.accept("Shopping plan generation completed.");
         return new WebPlanResult(
             optimizedPlan,
             acceptedListings,
@@ -597,12 +623,11 @@ public class ShoppingAgent {
     private ItemSearchResult searchOneItem(
             RequestedItem item,
             WebProductSearchService webSearch,
-            WebListingExtractor extractor) {
+            WebListingExtractor extractor,
+            Consumer<String> progress) {
 
         try {
-            System.out.println(
-                "Searching online for: " + item.name()
-            );
+            progress.accept("Searching online for " + item.name() + "...");
 
             WebSearchResult research =
                 webSearch.search(item.name());
@@ -626,12 +651,8 @@ public class ShoppingAgent {
                     .limit(MAX_CANDIDATES_PER_ITEM)
                     .toList();
 
-            System.out.printf(
-                "%s: %d extracted, %d accepted%n",
-                item.name(),
-                extracted.size(),
-                candidates.size()
-            );
+            progress.accept(item.name() + ": " + candidates.size()
+                    + " valid listing(s) found.");
 
             return new ItemSearchResult(item, candidates, null);
 

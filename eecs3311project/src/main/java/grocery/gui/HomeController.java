@@ -7,6 +7,7 @@ import grocery.agent.ClaudeClient;
 import grocery.agent.ShoppingAgent;
 import grocery.agent.ShoppingRequest;
 import grocery.agent.WebPlanResult;
+import grocery.model.ShoppingPlan;
 import grocery.model.UserPreferences;
 import grocery.service.PreferencesService;
 import grocery.service.ProductSearchService;
@@ -71,9 +72,7 @@ public class HomeController {
         loadingIndicator.setVisible(true);
         loadingIndicator.setManaged(true);
 
-        statusLabel.setText(
-            "Claude is generating your shopping plan..."
-        );
+        statusLabel.setText("Generating grocery item list...");
        
         Task<WebPlanResult> task = new Task<>() {
 
@@ -133,20 +132,29 @@ public class HomeController {
                     extractor,
                     true,
                     false,
-                    LocalDate.now()
+                    LocalDate.now(),
+                    message -> {
+                        System.out.println("[HOME] " + message);
+                        updateMessage(message);
+                    }
                 );
             }
         };
 
 
+        statusLabel.textProperty().bind(task.messageProperty());
+
         // Handle the successful completion of the web plan generation task.
         task.setOnSucceeded(event -> {
+            statusLabel.textProperty().unbind();
+            System.out.println("[HOME] Web plan generated successfully.");
 
             generateButton.setDisable(false);
             loadingIndicator.setVisible(false);
             loadingIndicator.setManaged(false);
 
             WebPlanResult result = task.getValue();
+            ShoppingPlan plan = result.plan();
 
             if (result.unresolvedItems().isEmpty()) {
                 statusLabel.setText(
@@ -182,6 +190,8 @@ public class HomeController {
 
 
         task.setOnFailed(event -> {
+            statusLabel.textProperty().unbind();
+            System.err.println("[HOME] Shopping plan generation failed.");
 
             generateButton.setDisable(false);
             loadingIndicator.setVisible(false);
