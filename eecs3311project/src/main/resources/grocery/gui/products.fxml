@@ -4,101 +4,52 @@
 
 <ScrollPane xmlns:fx="http://javafx.com/fxml"
             fx:controller="grocery.gui.ProductsController"
-            fitToWidth="true"
-            styleClass="page-scroll">
-
+            fitToWidth="true" styleClass="page-scroll">
     <content>
         <VBox spacing="22" styleClass="page-content">
-
-            <Label text="Product Search"
-                   styleClass="section-title"/>
-
-            <Label text="Search and compare grocery products across stores."
+            <Label text="Products" styleClass="section-title"/>
+            <Label text="Find products by name and compare online listed prices across stores."
                    styleClass="muted-label"/>
 
+            <Label text="Recent Product Searches" styleClass="field-label"/>
+            <FlowPane fx:id="recentSearchesBox" hgap="12" vgap="10" prefWrapLength="850"/>
+            <Separator/>
+
+            <Label text="Product Name" styleClass="field-label"/>
             <HBox spacing="12" alignment="CENTER_LEFT">
-
-                <TextField fx:id="searchField"
-                           promptText="Search for milk, bread, eggs..."
-                           onAction="#searchProducts"
-                           HBox.hgrow="ALWAYS"/>
-
-                <Button fx:id="searchButton" text="Search"
-                        onAction="#searchProducts"
+                <TextField fx:id="searchField" promptText="Search for milk, bread, eggs..."
+                           onAction="#searchProducts" HBox.hgrow="ALWAYS"/>
+                <Button fx:id="searchButton" text="Search" onAction="#searchProducts"
                         styleClass="primary-button"/>
-
-              <ProgressIndicator fx:id="loadingIndicator"
-                     prefWidth="24"
-                     prefHeight="24"
-                     visible="false"
-                     managed="false"/>
-
-              <Button text="Refresh Search" fx:id="refreshSearchButton" onAction="#refreshSearch"/>
-
-              <Button fx:id="addToPlanButton" text="Add to Shopping Plan"
-                     onAction="#addSelectedProductToPlan"/>
-
+                <ProgressIndicator fx:id="loadingIndicator" prefWidth="26"
+                                   prefHeight="26" visible="false" managed="false"/>
             </HBox>
-
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <ComboBox fx:id="savedSearchCombo" promptText="Saved Searches" prefWidth="230"/>
-                <Button text="Save Search" onAction="#saveCurrentSearch"/>
-                <Button text="Load Search" onAction="#loadSavedSearch"/>
-                <Button text="Delete Saved" onAction="#deleteSavedSearch"/>
-            </HBox>
-
             <HBox spacing="12" alignment="CENTER_LEFT">
-
-                <Label text="Sort by:"
-                       styleClass="field-label"/>
-
-                <ComboBox fx:id="sortComboBox"
-                          prefWidth="180"/>
-
+                <Label text="Sort By:" styleClass="field-label"/>
+                <ComboBox fx:id="sortComboBox" prefWidth="190"/>
                 <Region HBox.hgrow="ALWAYS"/>
-
-                <Label fx:id="resultCountLabel"
-                       text="0 products found"
-                       styleClass="muted-label"/>
-
+                <Label fx:id="resultCountLabel" text="0 products found" styleClass="muted-label"/>
             </HBox>
-
-            <TableView fx:id="productsTable"
-                       prefHeight="380"
+            <TableView fx:id="productsTable" prefHeight="340" maxWidth="Infinity"
                        styleClass="shopping-table">
-
                 <columns>
-                    <TableColumn fx:id="nameColumn"
-                                 text="Product"/>
-
-                    <TableColumn fx:id="brandColumn"
-                                 text="Brand"/>
-
-                    <TableColumn fx:id="storeColumn"
-                                 text="Store"/>
-
-                    <TableColumn fx:id="sizeColumn"
-                                 text="Package Size"/>
-
-                    <TableColumn fx:id="priceColumn"
-                                 text="Price"/>
-
-                    <TableColumn fx:id="unitPriceColumn"
-                                 text="Unit Price"/>
-
-                     <TableColumn fx:id="sourceColumn"
-                                   text="Source"
-                                   prefWidth="100"/>
+                    <TableColumn fx:id="nameColumn" text="Product"/>
+                    <TableColumn fx:id="brandColumn" text="Brand"/>
+                    <TableColumn fx:id="storeColumn" text="Store"/>
+                    <TableColumn fx:id="sizeColumn" text="Package Size"/>
+                    <TableColumn fx:id="priceColumn" text="Price"/>
+                    <TableColumn fx:id="unitPriceColumn" text="Unit Price"/>
+                    <TableColumn fx:id="sourceColumn" text="Source"/>
                 </columns>
-
             </TableView>
-
-            <Label fx:id="statusLabel"
-                   text="Enter a product name to begin searching."
-                   wrapText="true"
-                   styleClass="muted-label"/>
-
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Button fx:id="addToPlanButton" text="Add to Shopping Plan"
+                        onAction="#addSelectedProductToPlan" styleClass="primary-button"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button text="Remove Selected Search" onAction="#deleteSavedSearch" styleClass="primary-button"/>
+            </HBox>
+            <Label fx:id="statusLabel" text="Enter a product name to begin searching."
+                   wrapText="true" styleClass="muted-label"/>
         </VBox>
     </content>
-
 </ScrollPane>

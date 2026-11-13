@@ -5,7 +5,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Scanner;
 
-import grocery.adapter.WebStoreAdapter;
 import grocery.agent.ClaudeClient;
 import grocery.model.Product;
 import grocery.model.ShoppingItem;
@@ -34,8 +33,8 @@ public class WebOptimizationDemo {
         WebListingExtractor extractor =
             new WebListingExtractor(claude);
 
-        WebStoreAdapter webAdapter =
-            new WebStoreAdapter();
+        // WebStoreAdapter webAdapter =
+        //     new WebStoreAdapter();
 
         System.out.println("=== AI WEB SHOPPING OPTIMIZER ===");
 
@@ -103,14 +102,14 @@ public class WebOptimizationDemo {
             String answer = scanner.nextLine().trim();
 
             if (answer.equalsIgnoreCase("y")) {
-                webAdapter.addApprovedListing(listing);
+                // webAdapter.addApprovedListing(listing);
             }
         }
 
         // STEP 4: Use approved web products
         ProductSearchService searchService =
             new ProductSearchService(
-                List.of(webAdapter)
+                List.of()
             );
 
         if (searchService.search(query).isEmpty()) {

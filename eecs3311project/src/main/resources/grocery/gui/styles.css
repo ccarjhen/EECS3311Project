@@ -279,44 +279,30 @@
 }
 
 
-/* ==================================================
-   10. SHOPPING PLAN - BUDGET PROGRESS BAR
-   ================================================== */
-
+/* 10. Responsive shopping plan progress: original orange / wheat look.
+   Its width comes from the parent VBox and maxWidth=Infinity in plan.fxml. */
 .budget-progress {
     -fx-accent: #C44900;
-
-    -fx-pref-height: 16px;
-    -fx-min-height: 16px;
-    -fx-max-height: 16px;
-
-    -fx-background-color: transparent;
+    -fx-pref-height: 18px;
+    -fx-min-height: 18px;
+    -fx-max-height: 18px;
     -fx-padding: 0;
+    -fx-background-color: transparent;
 }
-
-/* Background Track */
-
-.budget-progress .track {
+.budget-progress > .track {
     -fx-background-color: #EFD6AC;
     -fx-background-radius: 20;
     -fx-background-insets: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
 }
-
-/* Filled Portion */
-
-.budget-progress .bar {
+.budget-progress > .bar {
     -fx-background-color: #C44900;
     -fx-background-radius: 20;
     -fx-background-insets: 0;
     -fx-padding: 0;
 }
-
-/* Optional Over-Budget Styling */
-
-.budget-progress.over-budget .bar {
-    -fx-background-color: #B3261E;
-}
-
+.budget-progress.over-budget > .bar { -fx-background-color: #B3261E; }
 
 /* ==================================================
    11. SHOPPING PLAN - MINIMAL TABLE
@@ -875,3 +861,62 @@
 .checklist-action-button:pressed {
     -fx-background-color: #873100;
 }
+/* Active optimization and recent search tabs */
+.optimization-button, .recent-search-button {
+    -fx-background-color: #D8E1DF;
+    -fx-text-fill: #183A37;
+    -fx-border-color: #426760;
+    -fx-border-width: 1;
+    -fx-border-radius: 25;
+    -fx-background-radius: 25;
+    -fx-padding: 10 18;
+    -fx-cursor: hand;
+}
+.optimization-button:hover, .recent-search-button:hover {
+    -fx-background-color: #C1D0CD;
+}
+.optimization-button.active-optimization, .recent-search-button.selected {
+    -fx-background-color: #183A37;
+    -fx-text-fill: #FFFFFF;
+    -fx-border-color: #183A37;
+}
+.optimization-button.active-optimization:hover, .recent-search-button.selected:hover {
+    -fx-background-color: #244E49;
+}
+.checklist-remove-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #C44900;
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-padding: 3 10;
+    -fx-background-radius: 50%;
+}
+.checklist-remove-button:hover { -fx-background-color: #F6E4CA; }
+.shopping-table .column-header .column-resize-line {
+    -fx-background-color: #C44900;
+    -fx-pref-width: 1;
+}
+
+/* Search scope tabs - same interaction language as saved checklist tabs */
+.recent-search-button {
+    -fx-min-width: 78px;
+    -fx-padding: 10 20;
+}
+.recent-search-button.selected {
+    -fx-background-color: #183A37;
+    -fx-text-fill: #FFFFFF;
+}
+/* Uniform action buttons in both pages, including non-search actions */
+.primary-button {
+    -fx-background-color: #C44900;
+    -fx-text-fill: #FFFFFF;
+    -fx-background-radius: 25;
+    -fx-border-radius: 25;
+    -fx-border-color: transparent;
+    -fx-padding: 11 22;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+.primary-button:hover { -fx-background-color: #A53C00; }
+.primary-button:disabled { -fx-opacity: .45; }

@@ -14,9 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import grocery.adapter.LongosAdapter;
-import grocery.adapter.NoFrillsAdapter;
-import grocery.adapter.WalmartAdapter;
 import grocery.agent.LLMClient;
 import grocery.agent.ShoppingAgent;
 import grocery.agent.ShoppingRequest;
@@ -65,9 +62,9 @@ public class AppTest {
 
         searchService = new ProductSearchService(
             List.of(
-                new LongosAdapter(),
-                new WalmartAdapter(),
-                new NoFrillsAdapter()
+                // new LongosAdapter(),
+                // new WalmartAdapter(),
+                // new NoFrillsAdapter()
             )
         );
 

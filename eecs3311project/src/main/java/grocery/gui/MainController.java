@@ -29,6 +29,17 @@ public class MainController {
     private WebPlanResult currentWebResult;
     private final Map<String, List<WebProductListing>> webCandidates = new LinkedHashMap<>();
     private ChecklistController activeChecklistController;
+    private String activeOptimization = "Cheapest";
+    private ShoppingPlan originalGeneratedPlan;
+    private final Map<String, List<WebProductListing>> originalWebCandidates = new LinkedHashMap<>();
+
+    public String getActiveOptimization() {
+        return activeOptimization;
+    }
+
+    public void setActiveOptimization(String name) {
+        this.activeOptimization = name;
+    }
 
     @FXML
     public void initialize() { showHome(); }
@@ -38,16 +49,58 @@ public class MainController {
     public ShoppingPlan getOptimizationBasePlan() { return optimizationBasePlan; }
     public WebPlanResult getCurrentWebResult() { return currentWebResult; }
 
+    
     public void setCurrentWebResult(WebPlanResult result) {
         currentWebResult = result;
         webCandidates.clear();
+        originalWebCandidates.clear();
         optimizationBasePlan = null;
+        originalGeneratedPlan = null;
+
         if (result != null) {
-            result.candidatesByItem().forEach((name, listings) ->
-                webCandidates.put(name, new ArrayList<>(listings)));
+            result.candidatesByItem().forEach((name, listings) -> {
+                webCandidates.put(
+                    name,
+                    new ArrayList<>(listings)
+                );
+                originalWebCandidates.put(
+                    name,
+                    new ArrayList<>(listings)
+                );
+            });
+
+            // Preserve the original generated plan.
+            originalGeneratedPlan = copyPlan(result.plan());
+            // Preserve the optimization baseline separately.
             optimizationBasePlan = copyPlan(result.plan());
+            activeOptimization = "Cheapest";
         }
     }
+
+    public void restoreOriginalPlan() {
+        if (originalGeneratedPlan == null) {
+            throw new IllegalStateException(
+                "No original AI-generated plan is available."
+            );
+        }
+        // Restore the original shopping items and products.
+        currentPlan = copyPlan(originalGeneratedPlan);
+        // Reset the optimization baseline.
+        optimizationBasePlan = copyPlan(originalGeneratedPlan);
+        // Restore original web-search alternatives.
+        webCandidates.clear();
+
+        originalWebCandidates.forEach((name, listings) ->
+            webCandidates.put(
+                name,
+                new ArrayList<>(listings)
+            )
+        );
+        // Restore the default optimization selection.
+        activeOptimization = "Cheapest";
+    }
+
+
 
     public Map<String, List<WebProductListing>> getWebCandidates() {
         Map<String, List<WebProductListing>> copy = new LinkedHashMap<>();

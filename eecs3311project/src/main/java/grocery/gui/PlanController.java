@@ -1,5 +1,15 @@
 package grocery.gui;
 
+import java.awt.Desktop;
+import java.net.URI;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+
 import grocery.adapter.CachedWebStoreAdapter;
 import grocery.controller.ShoppingController;
 import grocery.model.Product;
@@ -21,17 +31,18 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.Hyperlink;
+import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.Tooltip;
 import javafx.util.Duration;
-import java.awt.Desktop;
-import java.net.URI;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
 
 public class PlanController {
     @FXML private Label planNameLabel, totalLabel, budgetLabel, percentLabel, remainingLabel;
@@ -121,12 +132,27 @@ public class PlanController {
 
     public void setShoppingPlan(ShoppingPlan plan) {
         currentPlan = plan;
+
+        if (mainController != null && plan != null) {
+            String selected = mainController.getActiveOptimization();
+            switch (selected) {
+                case "Cheapest" ->
+                    highlightOptimization(cheapestButton);
+                case "Fewest Stores" ->
+                    highlightOptimization(fewestStoresButton);
+                case "One Store" ->
+                    highlightOptimization(oneStoreButton);
+                default ->
+                    highlightOptimization(null);
+            }
+        }
         boolean hasItems = plan != null && !plan.getShoppingItems().isEmpty();
         cheapestButton.setDisable(!hasItems);
         fewestStoresButton.setDisable(!hasItems);
         oneStoreButton.setDisable(!hasItems);
         refreshPlanButton.setDisable(plan == null);
         if (plan == null) {
+            highlightOptimization(null);
             planNameLabel.setText("Shopping Plan");
             itemsTable.getItems().clear();
             totalLabel.setText("$0.00");
@@ -233,6 +259,26 @@ public class PlanController {
             if (mainController != null) mainController.setCurrentPlan(optimized);
             setShoppingPlan(optimized);
             optimizationStatusLabel.setText(title + " optimization applied.");
+
+            String mode;
+
+            if (title.startsWith("One Store")) {
+                mode = "One Store";
+                highlightOptimization(oneStoreButton);
+
+            } else if (title.equals("Fewest Stores")) {
+                mode = "Fewest Stores";
+                highlightOptimization(fewestStoresButton);
+
+            } else {
+                mode = "Cheapest";
+                highlightOptimization(cheapestButton);
+            }
+
+            if (mainController != null) {
+                mainController.setActiveOptimization(mode);
+            }
+
         } catch (RuntimeException ex) {
             optimizationStatusLabel.setText(title + " optimization was not possible.");
             showError(ex.getMessage());
@@ -301,13 +347,57 @@ public class PlanController {
         optimizationStatusLabel.setText(selected.getName() + " removed.");
     }
 
-    @FXML private void refreshPlan() {
-        if (mainController == null || mainController.getCurrentPlan() == null) {
-            showError("No plan to refresh."); return;
+    
+    @FXML
+    private void refreshPlan() {
+        if (mainController == null
+                || mainController.getCurrentWebResult() == null) {
+            showError(
+                "No original AI-generated plan is available."
+            );
+            return;
         }
-        setWebCandidates(mainController.getWebCandidates());
-        setShoppingPlan(mainController.getCurrentPlan());
-        optimizationStatusLabel.setText("Plan display refreshed. No new web search performed.");
+
+        // Confirm before discarding modifications.
+        Alert confirmation = new Alert(
+            Alert.AlertType.CONFIRMATION
+        );
+        confirmation.setTitle("Restore Original Plan");
+
+        confirmation.setHeaderText(
+            "Restore the original AI-generated shopping plan?"
+        );
+
+        confirmation.setContentText(
+            "This will undo product replacements, removals, "
+            + "additions, and optimization changes."
+        );
+
+        if (confirmation.showAndWait()
+                .orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            return;
+        }
+
+        try {
+            mainController.restoreOriginalPlan();
+            // Restore the original web alternatives.
+            setWebCandidates(
+                mainController.getWebCandidates()
+            );
+            // Display the restored shopping plan.
+            setShoppingPlan(
+                mainController.getCurrentPlan()
+            );
+            // Restore Cheapest button highlighting.
+            highlightOptimization(cheapestButton);
+
+            optimizationStatusLabel.setText(
+                "Original shopping plan restored successfully."
+            );
+
+        } catch (RuntimeException e) {
+            showError(e.getMessage());
+        }
     }
 
     private String sourceFor(ShoppingItem item) {
@@ -337,4 +427,23 @@ public class PlanController {
         alert.setContentText(message == null ? "An unexpected error occurred." : message);
         alert.showAndWait();
     }
+
+
+    private void highlightOptimization(Button active) {
+
+        Button[] buttons = {
+            cheapestButton,
+            fewestStoresButton,
+            oneStoreButton
+        };
+
+        for (Button button : buttons) {
+            button.getStyleClass().remove("active-optimization");
+        }
+
+        if (active != null) {
+            active.getStyleClass().add("active-optimization");
+        }
+    }
+
 }

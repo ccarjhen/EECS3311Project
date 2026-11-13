@@ -5,9 +5,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Scanner;
 
-import grocery.adapter.LongosAdapter;
-import grocery.adapter.NoFrillsAdapter;
-import grocery.adapter.WalmartAdapter;
 import grocery.agent.ClaudeClient;
 import grocery.agent.RequestedItem;
 import grocery.agent.ShoppingAgent;
@@ -31,9 +28,9 @@ public class AgentWebDemo {
         ProductSearchService localSearch =
             new ProductSearchService(
                 List.of(
-                    new LongosAdapter(),
-                    new WalmartAdapter(),
-                    new NoFrillsAdapter()
+                    // new LongosAdapter(),
+                    // new WalmartAdapter(),
+                    // new NoFrillsAdapter()
                 )
             );
 

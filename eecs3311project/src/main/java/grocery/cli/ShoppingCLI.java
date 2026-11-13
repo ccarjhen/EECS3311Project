@@ -5,10 +5,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Scanner;
 
-import grocery.adapter.LongosAdapter;
-import grocery.adapter.NoFrillsAdapter;
-import grocery.adapter.WalmartAdapter;
-import grocery.adapter.WebStoreAdapter;
 import grocery.agent.ClaudeClient;
 import grocery.agent.RequestedItem;
 import grocery.agent.ShoppingAgent;
@@ -74,9 +70,9 @@ public class ShoppingCLI {
 
         searchService = new ProductSearchService(
             List.of(
-                new LongosAdapter(),
-                new WalmartAdapter(),
-                new NoFrillsAdapter()
+                // new LongosAdapter(),
+                // new WalmartAdapter(),
+                // new NoFrillsAdapter()
             )
         );
 
@@ -266,26 +262,26 @@ public class ShoppingCLI {
         );
 
 
-        // One fresh catalogue per web plan; do not add the same listings twice.
-        WebStoreAdapter adapter = new WebStoreAdapter();
-        for (WebProductListing listing : result.approvedListings()) {
-            // Normalize store names before optimization so that, for example,
-            // "No Frills Canada" and "No Frills" are treated as one store.
-            WebProductListing normalized = new WebProductListing(
-                listing.name(),
-                listing.brand(),
-                listing.category(),
-                StoreNameNormalizer.normalize(listing.store()),
-                listing.price(),
-                listing.size(),
-                listing.unit(),
-                listing.sourceUrl()
-            );
-            adapter.addApprovedListing(normalized);
-        }
+        // // One fresh catalogue per web plan; do not add the same listings twice.
+        // WebStoreAdapter adapter = new WebStoreAdapter();
+        // for (WebProductListing listing : result.approvedListings()) {
+        //     // Normalize store names before optimization so that, for example,
+        //     // "No Frills Canada" and "No Frills" are treated as one store.
+        //     WebProductListing normalized = new WebProductListing(
+        //         listing.name(),
+        //         listing.brand(),
+        //         listing.category(),
+        //         StoreNameNormalizer.normalize(listing.store()),
+        //         listing.price(),
+        //         listing.size(),
+        //         listing.unit(),
+        //         listing.sourceUrl()
+        //     );
+        //     adapter.addApprovedListing(normalized);
+        // }
 
         // Switch to the new catalogue only after plan generation succeeds.
-        activeSearchService = new ProductSearchService(List.of(adapter));
+        // activeSearchService = new ProductSearchService(List.of(adapter));
         currentWebResult = result;
         usingWebPlan = true;
         hasMembership = selectedMembership;

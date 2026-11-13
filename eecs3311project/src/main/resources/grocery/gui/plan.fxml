@@ -24,10 +24,14 @@
                    styleClass="muted-label"/>
 
             <ProgressBar fx:id="budgetProgress"
-                    progress="0"
-                    prefWidth="1000"
-                    prefHeight="18"
-                    styleClass="budget-progress"/>
+                         progress="0"
+                         prefHeight="18"
+                         minHeight="18"
+                         maxHeight="18"
+                         minWidth="0"
+                         maxWidth="Infinity"
+                         styleClass="budget-progress"
+                         style="-fx-accent: #C44900;"/>
 
             <HBox alignment="CENTER_LEFT">
                 <Label fx:id="percentLabel"
@@ -88,49 +92,52 @@
 
 
 
-            <HBox spacing="15" alignment="CENTER_LEFT">
-
+            <!-- All three actions stay on one horizontal row. -->
+            <HBox spacing="14" alignment="CENTER_LEFT" maxWidth="Infinity">
                 <Button fx:id="alternativeButton"
                         text="Find Alternative"
                         onAction="#findAlternative"
                         disable="true"
-                        styleClass="alternative-button"/>
-
-                <Label text="Select a product above to find alternatives."
-                    styleClass="muted-label"/>
-
+                        styleClass="primary-button"/>
                 <Button fx:id="removeProductButton"
-                    text="Remove Product"
-                    onAction="#removeSelectedProduct"/>
-
+                        text="Remove Product"
+                        onAction="#removeSelectedProduct"
+                        styleClass="primary-button"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="refreshPlanButton"
+                        text="Refresh Plan"
+                        onAction="#refreshPlan"
+                        styleClass="primary-button"/>
             </HBox>
-
-            <Button fx:id="refreshPlanButton"
-                text="Refresh Plan"
-                onAction="#refreshPlan"/>
-
 
             <!-- Optimization Options -->
             
             <Label text="Optimization"
                 styleClass="section-title"/>
 
-            <HBox spacing="15">
+            <HBox spacing="15" fillHeight="true">
 
                 <Button fx:id="cheapestButton"
                         text="Cheapest"
                         onAction="#optimizeCheapest"
-                        styleClass="secondary-button"/>
+                        maxWidth="Infinity"
+                        HBox.hgrow="ALWAYS"
+                        styleClass="optimization-button"/>
+                        
 
                 <Button fx:id="fewestStoresButton"
                         text="Fewest Stores"
                         onAction="#optimizeFewestStores"
-                        styleClass="secondary-button"/>
+                        maxWidth="Infinity"
+                        HBox.hgrow="ALWAYS"
+                        styleClass="optimization-button"/>
 
                 <Button fx:id="oneStoreButton"
                         text="One Store"
                         onAction="#optimizeOneStore"
-                        styleClass="secondary-button"/>
+                        maxWidth="Infinity"
+                        HBox.hgrow="ALWAYS"
+                        styleClass="optimization-button"/>
 
             </HBox>
 

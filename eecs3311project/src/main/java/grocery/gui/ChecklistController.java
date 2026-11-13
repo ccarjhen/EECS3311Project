@@ -4,9 +4,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
-import grocery.adapter.LongosAdapter;
-import grocery.adapter.NoFrillsAdapter;
-import grocery.adapter.WalmartAdapter;
 import grocery.command.AddItemCommand;
 import grocery.command.ChangeQuantityCommand;
 import grocery.command.ChecklistCommand;
@@ -34,6 +31,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 public class ChecklistController implements PlanObserver {
@@ -62,11 +61,7 @@ public class ChecklistController implements PlanObserver {
         new ChecklistRepository();
 
     private final ProductSearchService searchService =
-        new ProductSearchService(List.of(
-            new LongosAdapter(),
-            new WalmartAdapter(),
-            new NoFrillsAdapter()
-        ));
+        new ProductSearchService(List.of());
 
     private final ShoppingController shoppingController =
         new ShoppingController(searchService);
@@ -81,6 +76,7 @@ public class ChecklistController implements PlanObserver {
         checklistView.setPlaceholder(
             new Label("No checklist items yet.")
         );
+        checklistProgress.setMaxWidth(Double.MAX_VALUE);
 
         checklistView.setCellFactory(view -> new ListCell<>() {
 
@@ -91,12 +87,23 @@ public class ChecklistController implements PlanObserver {
             private final VBox labels =
                 new VBox(4, name, details);
 
+            private final Region spacer = new Region();
+            private final Button removeButton = new Button("×");
             private final HBox row =
-                new HBox(16, box, labels);
+                new HBox(16, box, labels, spacer, removeButton);
 
             {
                 row.setAlignment(Pos.CENTER_LEFT);
                 row.setStyle("-fx-padding: 4 8;");
+                HBox.setHgrow(spacer, Priority.ALWAYS);
+                removeButton.getStyleClass().add("checklist-remove-button");
+                removeButton.setTooltip(new javafx.scene.control.Tooltip("Remove this checklist item"));
+                removeButton.setOnAction(event -> {
+                    ShoppingItem item = getItem();
+                    if (currentPlan != null && item != null) {
+                        executeCommand(new RemoveItemCommand(currentPlan, item));
+                    }
+                });
 
                 box.setOnAction(event -> {
                     ShoppingItem item = getItem();
@@ -574,4 +581,6 @@ public class ChecklistController implements PlanObserver {
             message == null ? "An error occurred." : message
         );
     }
+
+
 }

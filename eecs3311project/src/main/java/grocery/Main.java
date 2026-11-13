@@ -4,10 +4,6 @@ package grocery;
 import java.time.LocalDate;
 import java.util.List;
 
-import grocery.adapter.LongosAdapter;
-import grocery.adapter.NoFrillsAdapter;
-import grocery.adapter.StoreAdapter;
-import grocery.adapter.WalmartAdapter;
 import grocery.command.AddItemCommand;
 import grocery.command.ChangeQuantityCommand;
 import grocery.command.MarkPurchasedCommand;
@@ -94,13 +90,13 @@ public class Main {
     private static void initializeServices() {
 
         // Store Adapters
-        StoreAdapter longos = new LongosAdapter();
-        StoreAdapter walmart = new WalmartAdapter();
-        StoreAdapter noFrills = new NoFrillsAdapter();
+        // StoreAdapter longos = new LongosAdapter();
+        // StoreAdapter walmart = new WalmartAdapter();
+        // StoreAdapter noFrills = new NoFrillsAdapter();
 
         // Services
         searchService = new ProductSearchService(
-                List.of(longos, walmart, noFrills)
+                List.of()
         );
 
         promotionService = new PromotionService();
