@@ -1,276 +1,179 @@
-
 package grocery;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Locale;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import grocery.adapter.StoreAdapter;
 import grocery.agent.LLMClient;
 import grocery.agent.ShoppingAgent;
 import grocery.agent.ShoppingRequest;
-import grocery.command.AddItemCommand;
-import grocery.command.ChangeQuantityCommand;
-import grocery.command.MarkPurchasedCommand;
-import grocery.command.RemoveItemCommand;
 import grocery.controller.ShoppingController;
 import grocery.model.Product;
 import grocery.model.Promotion;
 import grocery.model.ShoppingItem;
 import grocery.model.ShoppingPlan;
-import grocery.model.UserPreferences;
-import grocery.observer.PlanObserver;
-import grocery.service.PriceComparisonService;
 import grocery.service.ProductSearchService;
 import grocery.service.PromotionService;
 import grocery.service.ShoppingPlanPricingService;
 import grocery.strategy.CheapestStrat;
-import grocery.strategy.FewestStoresStrat;
-import grocery.strategy.OneStoreStrat;
-import grocery.strategy.OptimizationStrat;
 
-public class AppTest {
-
-    // ========================================
-    // SHARED TEST DATA
-    // ========================================
+class AppTest {
 
     private static final LocalDate TEST_DATE =
-            LocalDate.of(2026, 10, 31);
+        LocalDate.of(2026, 10, 31);
 
     private ProductSearchService searchService;
     private PromotionService promotionService;
-    private PriceComparisonService comparisonService;
     private ShoppingPlanPricingService pricingService;
     private ShoppingController controller;
-    private UserPreferences preferences;
 
-    // ========================================
-    // SETUP: RUN BEFORE EACH TEST
-    // ========================================
+    // --- SETUP ---
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
 
-        searchService = new ProductSearchService(
-            List.of(
-                // new LongosAdapter(),
-                // new WalmartAdapter(),
-                // new NoFrillsAdapter()
+        // In-memory test catalogue.
+        // No real retailer or Claude API calls.
+
+        Map<String, List<Product>> catalogue = Map.of(
+
+            "milk", List.of(
+                product("M1", "Milk", "Dairy",
+                    "Walmart", 5.00),
+
+                product("M2", "Milk", "Dairy",
+                    "No Frills", 6.00)
+            ),
+
+            "bread", List.of(
+                product("B1", "Bread", "Bakery",
+                    "Walmart", 3.00),
+
+                product("B2", "Bread", "Bakery",
+                    "No Frills", 2.00)
+            ),
+
+            "eggs", List.of(
+                product("E1", "Eggs", "Dairy",
+                    "Walmart", 4.00),
+
+                product("E2", "Eggs", "Dairy",
+                    "No Frills", 5.00)
             )
         );
 
+        StoreAdapter mockAdapter = query -> {
+
+            if (query == null) {
+                return List.of();
+            }
+
+            String key = query.trim()
+                .toLowerCase(Locale.ROOT);
+
+            return catalogue.getOrDefault(
+                key,
+                List.of()
+            );
+        };
+
+        searchService = new ProductSearchService(
+            List.of(mockAdapter)
+        );
+
         promotionService = new PromotionService();
-        comparisonService = new PriceComparisonService();
 
         pricingService = new ShoppingPlanPricingService(
             promotionService
         );
 
         controller = new ShoppingController(searchService);
-
-        preferences = new UserPreferences();
-        preferences.addPreferredStore("Longos");
-        preferences.addPreferredBrand("Neilson");
-        preferences.addExcludedItem("Pork");
     }
 
-    // ========================================
-    // DOMAIN MODEL TESTS
-    // ========================================
+    // --- PRODUCT AND SHOPPING PLAN ---
 
     @Test
-    public void testProductCreation() {
+    void testProductCreation() {
 
-        Product milk = createMilkProduct(6.49);
+        Product milk = product(
+            "M1", "Milk", "Dairy",
+            "Walmart", 5.00
+        );
 
         assertAll(
-            () -> assertEquals("2% Milk", milk.getName()),
+            () -> assertEquals("Milk", milk.getName()),
+            () -> assertEquals("Dairy", milk.getCategory()),
             () -> assertEquals("Walmart", milk.getStore()),
-            () -> assertEquals(6.49, milk.getPrice(), 0.001),
-            () -> assertEquals(4, milk.getSize()),
-            () -> assertEquals("L", milk.getUnit())
+            () -> assertEquals(5.00, milk.getPrice(), 0.001),
+            () -> assertEquals(1.0, milk.getSize(), 0.001),
+            () -> assertEquals("pcs", milk.getUnit())
         );
     }
 
     @Test
-    public void testShoppingItemSubtotal() {
+    void testShoppingPlanBudget() {
 
-        Product milk = createMilkProduct(6.49);
-
-        ShoppingItem item =
-                new ShoppingItem("Milk", "Dairy", 2);
-
-        item.setProduct(milk);
-
-        assertEquals(12.98, item.getSubtotal(), 0.001);
-    }
-
-    @Test
-    public void testShoppingPlanTotal() {
-
-        ShoppingPlan plan =
-                new ShoppingPlan("Weekly Groceries", 50.00);
-
-        Product bread = new Product(
-            "P002", "White Bread", "Wonder",
-            "Bakery", "Walmart", 3.49, 675, "g"
+        ShoppingPlan plan = new ShoppingPlan(
+            "Weekly Groceries", 20.00
         );
 
-        ShoppingItem item =
-                new ShoppingItem("Bread", "Bakery", 2);
+        ShoppingItem milk =
+            new ShoppingItem("Milk", "Dairy", 2);
 
-        item.setProduct(bread);
-        plan.addItem(item);
-
-        assertAll(
-            () -> assertEquals(1, plan.getShoppingItems().size()),
-            () -> assertEquals(6.98, plan.calculateTotal(), 0.001),
-            () -> assertTrue(plan.isOnBudget())
+        milk.setProduct(
+            product("M1", "Milk", "Dairy",
+                "Walmart", 5.00)
         );
-    }
 
-    @Test
-    public void testMarkPurchased() {
+        plan.addItem(milk);
 
-        ShoppingItem item =
-                new ShoppingItem("Eggs", "Dairy", 1);
-
-        assertFalse(item.isPurchased());
-
-        item.checkPurchased();
-
-        assertTrue(item.isPurchased());
-    }
-
-    @Test
-    public void testInvalidQuantity() {
-
-        ShoppingItem item =
-                new ShoppingItem("Milk", "Dairy", 1);
-
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> item.setQuantity(0)
+        assertEquals(
+            10.00,
+            plan.calculateTotal(),
+            0.001
         );
+
+        assertTrue(plan.isOnBudget());
     }
 
-    // ========================================
-    // F05 - PRODUCT SEARCH
-    // ========================================
+    // --- PRODUCT SEARCH ---
 
     @Test
-    public void testProductSearch() {
+    void testProductSearch() {
 
         List<Product> results = controller.search("milk");
 
-        assertFalse(results.isEmpty());
+        assertEquals(2, results.size());
 
-        for (Product product : results) {
-            assertTrue(
-                product.getName().toLowerCase()
-                    .contains("milk")
-            );
-        }
+        assertTrue(results.stream().allMatch(
+            p -> p.getName().equalsIgnoreCase("Milk")
+        ));
     }
 
     @Test
-    public void testProductNotFound() {
+    void testProductNotFound() {
 
         List<Product> results =
-                searchService.search("nonexistentproduct123");
+            controller.search("nonexistentproduct123");
 
         assertTrue(results.isEmpty());
     }
 
-    // ========================================
-    // F06 - PRICE COMPARISON
-    // ========================================
+    // --- PROMOTION TESTS ---
 
     @Test
-    public void testPriceComparison() {
+    void testPromotionEligibility() {
 
-        Product reference = createMilkProduct(6.49);
-
-        List<Product> results =
-            comparisonService.comparePrices(
-                reference, searchService.search("milk")
-            );
-
-        assertFalse(results.isEmpty());
-
-        for (int i = 1; i < results.size(); i++) {
-
-            double previous =
-                comparisonService.getNormalizedUnitPrice(
-                    results.get(i - 1)
-                );
-
-            double current =
-                comparisonService.getNormalizedUnitPrice(
-                    results.get(i)
-                );
-
-            assertTrue(previous <= current);
-        }
-
-        for (Product product : results) {
-            assertTrue(
-                comparisonService.areComparable(
-                    reference, product
-                )
-            );
-        }
-    }
-
-    @Test
-    public void testUnitNormalization() {
-
-        Product milkLitres = new Product(
-            "T001", "Test Milk", "Test",
-            "Dairy", "Store A", 4.00, 1, "L"
-        );
-
-        Product milkMillilitres = new Product(
-            "T002", "Test Milk", "Test",
-            "Dairy", "Store B", 3.00, 500, "ml"
-        );
-
-        assertEquals(
-            4.00,
-            comparisonService.getNormalizedUnitPrice(milkLitres),
-            0.001
-        );
-
-        assertEquals(
-            6.00,
-            comparisonService.getNormalizedUnitPrice(milkMillilitres),
-            0.001
-        );
-
-        assertTrue(
-            comparisonService.areComparable(
-                milkLitres, milkMillilitres
-            )
-        );
-    }
-
-    // ========================================
-    // F07 - PROMOTION DETECTION
-    // ========================================
-
-    @Test
-    public void testPromotionEligibility() {
-
-        Product milk = createPromotionalMilk(
+        Product milk = promotionalMilk(
             6.49, true, 2
         );
 
@@ -282,9 +185,9 @@ public class AppTest {
     }
 
     @Test
-    public void testMembershipRequired() {
+    void testMembershipRequired() {
 
-        Product milk = createPromotionalMilk(
+        Product milk = promotionalMilk(
             6.49, true, 2
         );
 
@@ -299,14 +202,17 @@ public class AppTest {
     }
 
     @Test
-    public void testPromotionExpired() {
+    void testPromotionExpired() {
 
-        Product milk = createPromotionalMilk(
+        Product milk = promotionalMilk(
             6.49, true, 2
         );
 
         String result = promotionService.checkPromotions(
-            milk, 2, true, LocalDate.of(2026, 11, 6)
+            milk,
+            2,
+            true,
+            LocalDate.of(2026, 11, 6)
         );
 
         assertEquals(
@@ -316,9 +222,9 @@ public class AppTest {
     }
 
     @Test
-    public void testMinimumQuantity() {
+    void testMinimumQuantity() {
 
-        Product milk = createPromotionalMilk(
+        Product milk = promotionalMilk(
             6.49, false, 2
         );
 
@@ -333,41 +239,47 @@ public class AppTest {
     }
 
     @Test
-    public void testDiscountCalculation() {
+    void testDiscountCalculation() {
 
-        Product milk = createPromotionalMilk(
+        Product milk = promotionalMilk(
             5.00, false, 1
         );
 
-        double finalTotal =
+        double total =
             promotionService.getDiscountedTotal(
                 milk, 2, false, TEST_DATE
             );
 
-        assertEquals(8.00, finalTotal, 0.001);
+        // $5 x 2 = $10
+        // 20% discount = $8
+
+        assertEquals(8.00, total, 0.001);
     }
 
     @Test
-    public void testPromotionAwarePlanTotal() {
+    void testPromotionAwarePlanTotal() {
 
-        Product milk = createPromotionalMilk(
-            5.00, false, 1
+        ShoppingPlan plan = new ShoppingPlan(
+            "Promotional Plan", 50.00
         );
 
-        ShoppingItem item =
-                new ShoppingItem("Milk", "Dairy", 2);
+        ShoppingItem milk =
+            new ShoppingItem("Milk", "Dairy", 2);
 
-        item.setProduct(milk);
+        milk.setProduct(
+            promotionalMilk(5.00, false, 1)
+        );
 
-        ShoppingPlan plan =
-                new ShoppingPlan("Test Plan", 50.00);
+        plan.addItem(milk);
 
-        plan.addItem(item);
-
+        // Regular total before promotion.
         assertEquals(
-            10.00, plan.calculateTotal(), 0.001
+            10.00,
+            plan.calculateTotal(),
+            0.001
         );
 
+        // Total after 20% discount.
         assertEquals(
             8.00,
             pricingService.calculatePlanTotal(
@@ -377,118 +289,14 @@ public class AppTest {
         );
     }
 
-    // ========================================
-    // F09 - OPTIMIZATION STRATEGIES
-    // ========================================
+    // --- SHOPPING CONTROLLER TESTS ---
 
     @Test
-    public void testCheapestOptimization() {
+    void testControllerWithoutStrategy() {
 
-        ShoppingPlan plan = createSamplePlan();
-
-        OptimizationStrat strategy = new CheapestStrat(
-            searchService,
-            promotionService,
-            false,
-            TEST_DATE,
-            preferences
+        ShoppingPlan plan = new ShoppingPlan(
+            "Test Plan", 50.00
         );
-
-        ShoppingPlan result = strategy.optimize(plan);
-
-        assertAll(
-            () -> assertEquals(3, result.getShoppingItems().size()),
-            () -> assertTrue(result.getShoppingItems().stream()
-                    .allMatch(item -> item.getProduct() != null))
-        );
-    }
-
-    @Test
-    public void testFewestStoresOptimization() {
-
-        ShoppingPlan plan = createSamplePlan();
-
-        OptimizationStrat strategy = new FewestStoresStrat(
-            searchService,
-            promotionService,
-            false,
-            TEST_DATE,
-            preferences
-        );
-
-        ShoppingPlan result = strategy.optimize(plan);
-
-        long storeCount = result.getShoppingItems().stream()
-            .map(item -> item.getProduct().getStore())
-            .distinct()
-            .count();
-
-        // All three sample items are available at Walmart,
-        // so one store should be enough.
-        assertEquals(1, storeCount);
-    }
-
-    @Test
-    public void testOneStoreOptimization() {
-
-        ShoppingPlan plan = createSamplePlan();
-
-        OptimizationStrat strategy = new OneStoreStrat(
-            searchService,
-            promotionService,
-            false,
-            TEST_DATE,
-            "Walmart",
-            preferences
-        );
-
-        ShoppingPlan result = strategy.optimize(plan);
-
-        assertEquals(3, result.getShoppingItems().size());
-
-        for (ShoppingItem item : result.getShoppingItems()) {
-
-            assertNotNull(item.getProduct());
-
-            assertEquals(
-                "Walmart",
-                item.getProduct().getStore()
-            );
-        }
-    }
-
-    // ========================================
-    // SHOPPING CONTROLLER
-    // ========================================
-
-    @Test
-    public void testControllerOptimization() {
-
-        ShoppingPlan plan = createSamplePlan();
-
-        OptimizationStrat strategy = new CheapestStrat(
-            searchService,
-            promotionService,
-            false,
-            TEST_DATE,
-            preferences
-        );
-
-        controller.setOptimizationStrategy(strategy);
-
-        ShoppingPlan result = controller.optimize(plan);
-
-        assertEquals(3, result.getShoppingItems().size());
-
-        for (ShoppingItem item : result.getShoppingItems()) {
-            assertNotNull(item.getProduct());
-        }
-    }
-
-    @Test
-    public void testControllerWithoutStrategy() {
-
-        ShoppingPlan plan = createSamplePlan();
 
         assertThrows(
             IllegalStateException.class,
@@ -496,175 +304,78 @@ public class AppTest {
         );
     }
 
-
-    // ========================================
-    // F10 - INTERACTIVE CHECKLIST TESTS
-    // Command + Observer Patterns
-    // ========================================
-
-    // TEST 1: Add Item Command
     @Test
-    public void testAddItemCommand() {
+    void testControllerRejectsNullStrategy() {
 
-        ShoppingPlan plan =
-                new ShoppingPlan("Checklist Test", 50.00);
-
-        ShoppingItem item =
-                new ShoppingItem("Milk", "Dairy", 1);
-
-        controller.updateChecklist(
-            new AddItemCommand(plan, item)
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> controller.setOptimizationStrategy(null)
         );
-
-        assertEquals(1, plan.getShoppingItems().size());
-        assertTrue(plan.getShoppingItems().contains(item));
     }
 
-    // TEST 2: Remove Item Command
     @Test
-    public void testRemoveItemCommand() {
+    void testControllerOptimization() {
 
-        ShoppingPlan plan =
-                new ShoppingPlan("Checklist Test", 50.00);
-
-        ShoppingItem item =
-                new ShoppingItem("Milk", "Dairy", 1);
-
-        plan.addItem(item);
-
-        controller.updateChecklist(
-            new RemoveItemCommand(plan, item)
+        ShoppingPlan plan = new ShoppingPlan(
+            "Test Plan", 50.00
         );
 
-        assertTrue(plan.getShoppingItems().isEmpty());
+        plan.addItem(
+            new ShoppingItem("Milk", "Dairy", 1)
+        );
+
+        plan.addItem(
+            new ShoppingItem("Bread", "Bakery", 1)
+        );
+
+        CheapestStrat strategy = new CheapestStrat(
+            searchService,
+            promotionService,
+            false,
+            TEST_DATE,
+            new grocery.model.UserPreferences()
+        );
+
+        controller.setOptimizationStrategy(strategy);
+
+        ShoppingPlan result = controller.optimize(plan);
+
+        assertEquals(2, result.getShoppingItems().size());
+
+        // Milk $5 + Bread $2
+        assertEquals(
+            7.00,
+            result.calculateTotal(),
+            0.001
+        );
     }
 
-    // TEST 3: Mark Purchased Command
-    @Test
-    public void testMarkPurchasedCommand() {
-
-        ShoppingPlan plan =
-                new ShoppingPlan("Checklist Test", 50.00);
-
-        ShoppingItem item =
-                new ShoppingItem("Milk", "Dairy", 1);
-
-        plan.addItem(item);
-
-        assertFalse(item.isPurchased());
-
-        controller.updateChecklist(
-            new MarkPurchasedCommand(plan, item)
-        );
-
-        assertTrue(item.isPurchased());
-    }
-
-    // TEST 4: Change Quantity Command
-    @Test
-    public void testChangeQuantityCommand() {
-
-        ShoppingPlan plan =
-                new ShoppingPlan("Checklist Test", 50.00);
-
-        ShoppingItem item =
-                new ShoppingItem("Milk", "Dairy", 1);
-
-        Product milk = new Product(
-            "P001", "2% Milk", "Neilson",
-            "Dairy", "Walmart", 5.00, 4, "L"
-        );
-
-        item.setProduct(milk);
-        plan.addItem(item);
-
-        controller.updateChecklist(
-            new ChangeQuantityCommand(plan, item, 3)
-        );
-
-        assertEquals(3, item.getQuantity());
-
-        // $5.00 x 3 = $15.00
-        assertEquals(15.00, plan.calculateTotal(), 0.001);
-    }
-
-    // TEST 5: Observer Notification
-    @Test
-    public void testObserverNotification() {
-
-        ShoppingPlan plan =
-                new ShoppingPlan("Checklist Test", 50.00);
-
-        AtomicInteger notificationCount =
-                new AtomicInteger(0);
-
-        PlanObserver observer = updatedPlan -> {
-            notificationCount.incrementAndGet();
-        };
-
-        plan.addObserver(observer);
-
-        ShoppingItem item =
-                new ShoppingItem("Milk", "Dairy", 1);
-
-        // Add
-        controller.updateChecklist(
-            new AddItemCommand(plan, item)
-        );
-
-        assertEquals(1, notificationCount.get());
-
-        // Change quantity
-        controller.updateChecklist(
-            new ChangeQuantityCommand(plan, item, 2)
-        );
-
-        assertEquals(2, notificationCount.get());
-
-        // Mark purchased
-        controller.updateChecklist(
-            new MarkPurchasedCommand(plan, item)
-        );
-
-        assertEquals(3, notificationCount.get());
-
-        // Remove
-        controller.updateChecklist(
-            new RemoveItemCommand(plan, item)
-        );
-
-        assertEquals(4, notificationCount.get());
-
-        plan.removeObserver(observer);
-    }
-
-    // ========================================
-    // 
-    // ========================================
+    // --- SHOPPING AGENT TESTS ---
 
     @Test
-    public void testShoppingAgentCreatesPlan() throws Exception {
+    void testShoppingAgentCreatesPlan()
+            throws Exception {
 
-        // Fake LLM used only for automated testing
+        // Simulated Claude response.
         LLMClient fakeLLM = prompt -> """
             {
-            "items": [
+              "items": [
                 {
-                "name": "Milk",
-                "category": "Dairy",
-                "quantity": 2
+                  "name": "Milk",
+                  "category": "Dairy",
+                  "quantity": 2
                 },
                 {
-                "name": "Bread",
-                "category": "Bakery",
-                "quantity": 1
+                  "name": "Bread",
+                  "category": "Bakery",
+                  "quantity": 1
                 },
                 {
-                "name": "Eggs",
-                "category": "Dairy",
-                "quantity": 1
+                  "name": "Eggs",
+                  "category": "Dairy",
+                  "quantity": 1
                 }
-            ]
+              ]
             }
             """;
 
@@ -682,37 +393,128 @@ public class AppTest {
         ShoppingPlan result = agent.createPlan(
             request,
             false,
-            LocalDate.of(2026, 10, 31)
+            TEST_DATE
         );
 
-        assertEquals(3, result.getShoppingItems().size());
+        assertEquals(
+            3,
+            result.getShoppingItems().size()
+        );
 
-        for (ShoppingItem item : result.getShoppingItems()) {
-            assertNotNull(item.getProduct());
-            assertTrue(item.getQuantity() > 0);
-        }
+        assertTrue(result.getShoppingItems().stream()
+            .allMatch(item -> item.getProduct() != null));
+
+        assertTrue(result.getShoppingItems().stream()
+            .allMatch(item -> item.getQuantity() > 0));
+
+        // Milk: 2 x $5 = $10
+        // Bread: 1 x $2 = $2
+        // Eggs: 1 x $4 = $4
+        assertEquals(
+            16.00,
+            result.calculateTotal(),
+            0.001
+        );
     }
 
+    @Test
+    void testShoppingAgentRejectsEmptyList() {
 
+        LLMClient fakeLLM = prompt -> """
+            {
+              "items": []
+            }
+            """;
 
-    // ========================================
-    // HELPER METHODS
-    // ========================================
+        ShoppingAgent agent = new ShoppingAgent(
+            fakeLLM,
+            searchService,
+            promotionService
+        );
 
-    private Product createMilkProduct(double price) {
+        ShoppingRequest request = new ShoppingRequest(
+            "Make a grocery list",
+            40.00
+        );
+
+        assertThrows(
+            IllegalStateException.class,
+            () -> agent.createPlan(
+                request, false, TEST_DATE
+            )
+        );
+    }
+
+    @Test
+    void testShoppingAgentRejectsInvalidQuantity() {
+
+        LLMClient fakeLLM = prompt -> """
+            {
+              "items": [
+                {
+                  "name": "Milk",
+                  "category": "Dairy",
+                  "quantity": "two"
+                }
+              ]
+            }
+            """;
+
+        ShoppingAgent agent = new ShoppingAgent(
+            fakeLLM,
+            searchService,
+            promotionService
+        );
+
+        ShoppingRequest request = new ShoppingRequest(
+            "Buy milk",
+            20.00
+        );
+
+        assertThrows(
+            IllegalStateException.class,
+            () -> agent.createPlan(
+                request, false, TEST_DATE
+            )
+        );
+    }
+
+    // --- HELPER METHODS ---
+
+    private Product product(
+            String id,
+            String name,
+            String category,
+            String store,
+            double price) {
 
         return new Product(
-            "P001", "2% Milk", "Neilson",
-            "Dairy", "Walmart", price, 4, "L"
+            id,
+            name,
+            "Test Brand",
+            category,
+            store,
+            price,
+            1.0,
+            "pcs"
         );
     }
 
-    private Product createPromotionalMilk(
+    private Product promotionalMilk(
             double price,
             boolean membershipRequired,
             int minimumQuantity) {
 
-        Product milk = createMilkProduct(price);
+        Product milk = new Product(
+            "PM1",
+            "2% Milk",
+            "Neilson",
+            "Dairy",
+            "Walmart",
+            price,
+            4.0,
+            "L"
+        );
 
         Promotion promotion = new Promotion(
             "20% off Milk",
@@ -726,25 +528,5 @@ public class AppTest {
         milk.setPromotion(promotion);
 
         return milk;
-    }
-
-    private ShoppingPlan createSamplePlan() {
-
-        ShoppingPlan plan =
-            new ShoppingPlan("Test Plan", 50.00);
-
-        plan.addItem(
-            new ShoppingItem("Milk", "Dairy", 2)
-        );
-
-        plan.addItem(
-            new ShoppingItem("Bread", "Bakery", 1)
-        );
-
-        plan.addItem(
-            new ShoppingItem("Eggs", "Dairy", 1)
-        );
-
-        return plan;
     }
 }

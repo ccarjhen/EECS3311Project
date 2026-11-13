@@ -12,15 +12,30 @@ import java.util.List;
 
 /** Stores snapshots, not current prices or guaranteed retailer availability. */
 public class ProductSearchHistoryRepository {
-    private static final Path FILE = Path.of(
-        System.getProperty("user.home"), ".ai-grocery-companion", "product-search-history.json");
+    private final Path file;
+
     private final ObjectMapper mapper = new ObjectMapper();
+
+    // Normal application constructor.
+    // Existing ProductsController code remains compatible.
+    public ProductSearchHistoryRepository() {
+        this(Path.of(
+            System.getProperty("user.home"),
+            ".ai-grocery-companion",
+            "product-search-history.json"
+        ));
+    }
+
+    // Test constructor: allows temporary storage.
+    public ProductSearchHistoryRepository(Path file) {
+        this.file = java.util.Objects.requireNonNull(file);
+    }
 
     public record SavedSearch(String query, String savedAt, List<WebProductListing> listings) {}
 
     public List<SavedSearch> load() throws IOException {
-        if (!Files.exists(FILE)) return new ArrayList<>();
-        List<SavedSearch> saved = mapper.readValue(FILE.toFile(),
+        if (!Files.exists(file)) return new ArrayList<>();
+        List<SavedSearch> saved = mapper.readValue(file.toFile(),
             new TypeReference<List<SavedSearch>>() {});
         return saved == null ? new ArrayList<>() : saved;
     }
@@ -41,8 +56,16 @@ public class ProductSearchHistoryRepository {
         write(saved);
     }
 
+    
     private void write(List<SavedSearch> saved) throws IOException {
-        Files.createDirectories(FILE.getParent());
-        mapper.writerWithDefaultPrettyPrinter().writeValue(FILE.toFile(), saved);
+        Path parent = file.toAbsolutePath().getParent();
+
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+
+        mapper.writerWithDefaultPrettyPrinter()
+            .writeValue(file.toFile(), saved);
     }
+
 }

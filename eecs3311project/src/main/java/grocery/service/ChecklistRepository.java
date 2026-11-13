@@ -17,13 +17,25 @@ import grocery.model.ShoppingPlan;
 
 public class ChecklistRepository {
 
-    private static final Path FILE = Path.of(
-        System.getProperty("user.home"),
-        ".ai-grocery-companion",
-        "checklists.json"
-    );
+    
+    private final Path file;
 
     private final ObjectMapper mapper = new ObjectMapper();
+
+    // Used by the actual application.
+    public ChecklistRepository() {
+        this(Path.of(
+            System.getProperty("user.home"),
+            ".ai-grocery-companion",
+            "checklists.json"
+        ));
+    }
+
+    // Used by JUnit tests with temporary storage.
+    public ChecklistRepository(Path file) {
+        this.file = java.util.Objects.requireNonNull(file);
+    }
+
 
     // Data formats for saving JSON
 
@@ -56,13 +68,13 @@ public class ChecklistRepository {
     private Map<String, SavedChecklist> readAll()
             throws IOException {
 
-        if (!Files.exists(FILE)) {
+        if (!Files.exists(file)) {
             return new LinkedHashMap<>();
         }
 
         Map<String, SavedChecklist> data =
             mapper.readValue(
-                FILE.toFile(),
+                file.toFile(),
                 new TypeReference<
                     LinkedHashMap<String, SavedChecklist>
                 >() {}
@@ -79,10 +91,10 @@ public class ChecklistRepository {
             Map<String, SavedChecklist> data)
             throws IOException {
 
-        Files.createDirectories(FILE.getParent());
+        Files.createDirectories(file.getParent());
 
         mapper.writerWithDefaultPrettyPrinter()
-              .writeValue(FILE.toFile(), data);
+              .writeValue(file.toFile(), data);
     }
 
     // Get saved checklist names
