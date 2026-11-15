@@ -190,7 +190,14 @@ public class ShoppingCLI {
             System.out.printf("Estimated total: $%.2f | Remaining: $%.2f | %s%n", total,
                 currentPlan.getEstimatedBudget() - total,
                 total <= currentPlan.getEstimatedBudget() ? "Within budget" : "Over budget");
-        } else System.out.println("Total incomplete: some items have no selected product.");
+        } else {
+            long missing = items.stream().filter(i -> i.getProduct() == null).count();
+            System.out.printf("PARTIAL PLAN: $%.2f CAD subtotal for available items; "
+                + "%d item(s) unassigned. This is NOT the full shopping cost.%n",
+                currentPlan.calculateTotal(), missing);
+            items.stream().filter(i -> i.getProduct() == null)
+                .forEach(i -> System.out.println("  Not found at selected store: " + i.getName()));
+        }
         System.out.println("Web prices are estimates, not guaranteed current prices or availability.");
         if (webPlan != null && !webPlan.isComplete())
             System.out.println("This plan may exclude unresolved requested items.");

@@ -269,20 +269,20 @@ public class ProductsController {
         }
     }
 
-    @FXML private void deleteSavedSearch() {
-        String selected = savedSearchCombo.getValue();
-        if (selected == null || searching) { statusLabel.setText("Select a saved search first."); return; }
-        try {
-            historyRepository.delete(selected);
-            reloadSavedSearches();
-            if (savedSearchCombo != null) savedSearchCombo.setValue(null);
-            displayRecentSearchButtons();
-            statusLabel.setText("Deleted saved search: " + selected);
-        } catch (Exception ex) {
-            statusLabel.setText("Unable to delete saved search.");
-            ex.printStackTrace();
-        }
-    }
+    // @FXML private void deleteSavedSearch() {
+    //     String selected = savedSearchCombo.getValue();
+    //     if (selected == null || searching) { statusLabel.setText("Select a saved search first."); return; }
+    //     try {
+    //         historyRepository.delete(selected);
+    //         reloadSavedSearches();
+    //         if (savedSearchCombo != null) savedSearchCombo.setValue(null);
+    //         displayRecentSearchButtons();
+    //         statusLabel.setText("Deleted saved search: " + selected);
+    //     } catch (Exception ex) {
+    //         statusLabel.setText("Unable to delete saved search.");
+    //         ex.printStackTrace();
+    //     }
+    // }
 
     private void openSource(String url) {
         try {

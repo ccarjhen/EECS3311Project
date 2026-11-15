@@ -98,7 +98,6 @@ class OptimizationSupport {
                 throw new IllegalStateException(
                     "Cannot fulfill shopping item: " + item.getName()
                 );
-                // continue; // Skip this item if no options are available
             }
 
             Product selected = cheapest(options, item.getQuantity());
@@ -112,6 +111,30 @@ class OptimizationSupport {
             result.addItem(copy);
         }
 
+        return result;
+    }
+
+    /** One-store mode only: retain unavailable items without inventing a product/price. */
+    ShoppingPlan buildPartialPlan(ShoppingPlan original, Set<String> allowedStores) {
+        if (original == null || allowedStores == null || allowedStores.isEmpty()) {
+            throw new IllegalArgumentException("A plan and a selected store are required.");
+        }
+        ShoppingPlan result = new ShoppingPlan(original.getName(), original.getEstimatedBudget());
+        int matched = 0;
+        for (ShoppingItem item : original.getShoppingItems()) {
+            ShoppingItem copy = new ShoppingItem(item.getName(), item.getCategory(), item.getQuantity());
+            copy.setPurchased(item.isPurchased());
+            List<Product> options = findOptions(item, allowedStores);
+            if (!options.isEmpty()) {
+                copy.setProduct(cheapest(options, item.getQuantity()));
+                matched++;
+            }
+            result.addItem(copy);
+        }
+        if (matched == 0) {
+            throw new IllegalStateException(
+                "No eligible cached listings were found at the selected store.");
+        }
         return result;
     }
 

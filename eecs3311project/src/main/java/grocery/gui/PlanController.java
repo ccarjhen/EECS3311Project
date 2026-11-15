@@ -164,6 +164,12 @@ public class PlanController {
         planNameLabel.setText(plan.getName());
         itemsTable.setItems(FXCollections.observableArrayList(plan.getShoppingItems()));
         refreshBudget();
+        long unresolved = plan.getShoppingItems().stream()
+            .filter(item -> item.getProduct() == null).count();
+        if (unresolved > 0) {
+            optimizationStatusLabel.setText("Partial plan: " + unresolved
+                + " item(s) unassigned; displayed total excludes them.");
+        }
     }
 
     private void refreshBudget() {
@@ -172,7 +178,12 @@ public class PlanController {
         double budget = currentPlan.getEstimatedBudget();
         double fraction = budget > 0 ? total / budget : 0;
         totalLabel.setText(String.format("$%.2f", total));
-        budgetLabel.setText(String.format("Estimated total against a $%.2f budget", budget));
+        long unassigned = currentPlan.getShoppingItems().stream()
+            .filter(item -> item.getProduct() == null).count();
+        budgetLabel.setText(unassigned == 0
+            ? String.format("Estimated total against a $%.2f budget", budget)
+            : String.format("Partial subtotal: %d unassigned item(s) not included in price; budget $%.2f",
+                unassigned, budget));
         percentLabel.setText(String.format("%.1f%% of budget", fraction * 100));
         double remaining = budget - total;
         remainingLabel.setText(remaining >= 0
@@ -218,28 +229,26 @@ public class PlanController {
         try {
             ProductSearchService search = webSearchService();
             UserPreferences prefs = preferences();
-            Set<String> commonStores = new TreeSet<>();
-            boolean first = true;
+            // Offer any retailer with an eligible cached product, not only stores
+            // covering every item. OneStoreStrat will mark missing items unassigned.
+            Set<String> availableStores = new TreeSet<>();
             for (ShoppingItem item : currentPlan.getShoppingItems()) {
-                Set<String> stores = new TreeSet<>();
                 for (Product product : search.search(item.getName())) {
                     if (!product.getCategory().equalsIgnoreCase(item.getCategory())) continue;
                     boolean excluded = prefs.getExcludedItems().stream()
-                        .filter(s -> s != null && !s.isBlank())
-                        .anyMatch(s -> product.getName().toLowerCase(Locale.ROOT)
-                            .contains(s.trim().toLowerCase(Locale.ROOT)));
-                    if (!excluded) stores.add(product.getStore());
+                        .filter(value -> value != null && !value.isBlank())
+                        .anyMatch(value -> product.getName().toLowerCase(Locale.ROOT)
+                            .contains(value.trim().toLowerCase(Locale.ROOT)));
+                    if (!excluded) availableStores.add(product.getStore());
                 }
-                if (first) { commonStores.addAll(stores); first = false; }
-                else commonStores.retainAll(stores);
             }
-            if (commonStores.isEmpty()) {
-                showError("No single retailer has cached candidates for every item."); return;
+            if (availableStores.isEmpty()) {
+                showError("No eligible cached retailer listings are available."); return;
             }
-            List<String> stores = new ArrayList<>(commonStores);
+            List<String> stores = new ArrayList<>(availableStores);
             ChoiceDialog<String> dialog = new ChoiceDialog<>(stores.get(0), stores);
             dialog.setTitle("One Store Optimization");
-            dialog.setHeaderText("Choose a retailer with products for all items");
+            dialog.setHeaderText("Choose a retailer (missing items will remain unassigned)");
             dialog.setContentText("Store:");
             dialog.showAndWait().ifPresent(store -> applyOptimization("One Store: " + store,
                 new OneStoreStrat(search, promotionService, false, LocalDate.now(), store, prefs)));
@@ -258,9 +267,25 @@ public class PlanController {
             currentPlan = optimized;
             if (mainController != null) mainController.setCurrentPlan(optimized);
             setShoppingPlan(optimized);
-            optimizationStatusLabel.setText(title + " optimization applied.");
-            System.out.printf("[PLAN] %s optimization completed. Estimated total: $%.2f CAD%n",
-                title, optimized.calculateTotal());
+            long missing = optimized.getShoppingItems().stream()
+                .filter(item -> item.getProduct() == null).count();
+            double subtotal = optimized.calculateTotal();
+            if (missing > 0) {
+                String missingItems = optimized.getShoppingItems().stream()
+                    .filter(item -> item.getProduct() == null)
+                    .map(ShoppingItem::getName)
+                    .collect(java.util.stream.Collectors.joining(", "));
+                optimizationStatusLabel.setText("Partial " + title + " plan: " + missing
+                    + " item(s) unassigned: " + missingItems);
+                budgetLabel.setText(String.format(
+                    "Partial subtotal $%.2f; %d item(s) excluded from price", subtotal, missing));
+                System.out.printf("[PLAN] Partial %s: $%.2f CAD subtotal, %d unresolved: %s%n",
+                    title, subtotal, missing, missingItems);
+            } else {
+                optimizationStatusLabel.setText(title + " optimization applied.");
+                System.out.printf("[PLAN] %s optimization completed. Estimated total: $%.2f CAD%n",
+                    title, subtotal);
+            }
 
             String mode;
 
@@ -355,21 +380,21 @@ public class PlanController {
 
     @FXML private void refreshPlan() {
         if (mainController == null || !mainController.hasOriginalGeneratedPlan()) {
-            showError("No original AI-generated plan is available to restore.");
+            showError("No original AI-generated plan to restore.");
             return;
         }
-
         try {
-            System.out.println("[PLAN] Restoring original AI-generated plan...");
+            System.out.println("[PLAN] Restoring the originally generated shopping plan...");
             ShoppingPlan restored = mainController.restoreOriginalPlan();
-
+            // Restore the generation-time candidates as well as the selected products.
             setWebCandidates(mainController.getWebCandidates());
             setShoppingPlan(restored);
+            itemsTable.getSelectionModel().clearSelection();
+            highlightOptimization(cheapestButton);
             optimizationStatusLabel.setText(
-                "Original AI-generated plan restored without a new web search.");
-            System.out.printf(
-                "[PLAN] Original plan restored. Estimated total: $%.2f CAD%n",
-                restored.calculateTotal());
+                "Original AI-generated plan restored (no new web search).");
+            System.out.printf("[PLAN] Original plan restored: %d items; $%.2f CAD.%n",
+                restored.getShoppingItems().size(), restored.calculateTotal());
         } catch (RuntimeException ex) {
             System.err.println("[PLAN] Restore failed: " + ex.getMessage());
             showError(ex.getMessage());

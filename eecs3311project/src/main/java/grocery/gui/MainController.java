@@ -26,7 +26,9 @@ public class MainController {
 
     private ShoppingPlan currentPlan;
     private ShoppingPlan optimizationBasePlan;
+    // Immutable-by-convention snapshot: never expose or mutate this instance.
     private ShoppingPlan originalGeneratedPlan;
+    private final Map<String, List<WebProductListing>> originalWebCandidates = new LinkedHashMap<>();
     private WebPlanResult currentWebResult;
     private final Map<String, List<WebProductListing>> webCandidates = new LinkedHashMap<>();
     private ChecklistController activeChecklistController;
@@ -48,16 +50,26 @@ public class MainController {
     public ShoppingPlan getOptimizationBasePlan() { return optimizationBasePlan; }
     public WebPlanResult getCurrentWebResult() { return currentWebResult; }
 
+    /** Called once for each newly generated AI/web plan. */
     public void setCurrentWebResult(WebPlanResult result) {
         currentWebResult = result;
-        webCandidates.clear();
-        optimizationBasePlan = null;
         originalGeneratedPlan = null;
+        optimizationBasePlan = null;
+        originalWebCandidates.clear();
+        webCandidates.clear();
+        activeOptimization = "Cheapest";
+
         if (result != null) {
-            result.candidatesByItem().forEach((name, listings) ->
-                webCandidates.put(name, new ArrayList<>(listings)));
-            optimizationBasePlan = copyPlan(result.plan());
+            // Snapshot the generated plan BEFORE Find Alternative, Remove Product,
+            // checklist edits or optimization can mutate any ShoppingItem.
             originalGeneratedPlan = copyPlan(result.plan());
+            optimizationBasePlan = copyPlan(result.plan());
+            currentPlan = copyPlan(result.plan());
+            result.candidatesByItem().forEach((name, listings) -> {
+                List<WebProductListing> cached = List.copyOf(listings);
+                originalWebCandidates.put(name, cached);
+                webCandidates.put(name, new ArrayList<>(cached));
+            });
         }
     }
 
@@ -65,19 +77,21 @@ public class MainController {
         return originalGeneratedPlan != null;
     }
 
-    /** Restores the original AI-generated plan without a new API request. */
+    /**
+     * Restores all original items, quantities, purchase states, product selections,
+     * budget and web candidates; no LLM or web request is made.
+     * The snapshot itself is never returned to callers.
+     */
     public ShoppingPlan restoreOriginalPlan() {
         if (originalGeneratedPlan == null) {
-            throw new IllegalStateException("No original AI-generated plan is available.");
+            throw new IllegalStateException("No original AI-generated plan to restore.");
         }
         currentPlan = copyPlan(originalGeneratedPlan);
         optimizationBasePlan = copyPlan(originalGeneratedPlan);
-        activeOptimization = "Cheapest";
         webCandidates.clear();
-        if (currentWebResult != null) {
-            currentWebResult.candidatesByItem().forEach((name, listings) ->
-                webCandidates.put(name, new ArrayList<>(listings)));
-        }
+        originalWebCandidates.forEach((name, listings) ->
+            webCandidates.put(name, new ArrayList<>(listings)));
+        activeOptimization = "Cheapest";
         return currentPlan;
     }
 
@@ -116,6 +130,7 @@ public class MainController {
             listing.category(), listing.store(), listing.price(), listing.size(), listing.unit());
     }
 
+    /** Copy mutable item fields; product choice is replaced, not mutated, in this GUI. */
     private static ShoppingItem copyItem(ShoppingItem item) {
         ShoppingItem copy = new ShoppingItem(item.getName(), item.getCategory(), item.getQuantity());
         copy.setProduct(item.getProduct());

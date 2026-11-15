@@ -46,7 +46,6 @@
                 <Button fx:id="addToPlanButton" text="Add to Shopping Plan"
                         onAction="#addSelectedProductToPlan" styleClass="primary-button"/>
                 <Region HBox.hgrow="ALWAYS"/>
-                <Button text="Remove Selected Search" onAction="#deleteSavedSearch" styleClass="primary-button"/>
             </HBox>
             <Label fx:id="statusLabel" text="Enter a product name to begin searching."
                    wrapText="true" styleClass="muted-label"/>
