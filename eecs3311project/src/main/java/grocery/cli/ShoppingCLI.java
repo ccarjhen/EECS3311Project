@@ -1,15 +1,18 @@
 package grocery.cli;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Scanner;
-import java.util.Set;
+import java.util.TreeMap;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import grocery.adapter.CachedWebStoreAdapter;
 import grocery.agent.ClaudeClient;
@@ -20,6 +23,7 @@ import grocery.agent.WebPlanResult;
 import grocery.command.AddItemCommand;
 import grocery.command.ChangeQuantityCommand;
 import grocery.command.RemoveItemCommand;
+import grocery.command.SetPurchasedCommand;
 import grocery.controller.ShoppingController;
 import grocery.model.Product;
 import grocery.model.ShoppingItem;
@@ -27,6 +31,7 @@ import grocery.model.ShoppingPlan;
 import grocery.model.UserPreferences;
 import grocery.model.WebProductListing;
 import grocery.service.ChecklistRepository;
+import grocery.service.PreferencesService;
 import grocery.service.PriceComparisonService;
 import grocery.service.ProductSearchHistoryRepository;
 import grocery.service.ProductSearchService;
@@ -49,12 +54,12 @@ public class ShoppingCLI {
     private final PriceComparisonService comparisons = new PriceComparisonService();
     private final ChecklistRepository checklists = new ChecklistRepository();
     private final ProductSearchHistoryRepository history = new ProductSearchHistoryRepository();
-    private final UserPreferences preferences = new UserPreferences();
-    private final Set<String> preferredStores = new LinkedHashSet<>();
-    private final Set<String> preferredBrands = new LinkedHashSet<>();
-    private final Set<String> restrictions = new LinkedHashSet<>();
-    private final Set<String> allergies = new LinkedHashSet<>();
-    private final Set<String> exclusions = new LinkedHashSet<>();
+    private UserPreferences preferences = new UserPreferences();
+    private final PreferencesService preferencesService = new PreferencesService();
+    private final ObjectMapper mapper = new ObjectMapper();
+    // Shared with the JavaFX PreferencesController; both interfaces use the same file.
+    private static final Path PREFERENCES_FILE = Path.of(
+        System.getProperty("user.home"), ".ai-grocery-companion", "preferences.json");
     private final Map<String, List<WebProductListing>> candidates = new LinkedHashMap<>();
     private final Map<String, List<WebProductListing>> searchResults = new LinkedHashMap<>();
 
@@ -74,6 +79,12 @@ public class ShoppingCLI {
     }
 
     public void start() {
+        try {
+            preferences = preferencesService.load();
+            System.out.println("Loaded saved GUI/CLI preferences.");
+        } catch (IOException ex) {
+            System.out.println("Could not load saved preferences: " + ex.getMessage());
+        }
         while (true) {
             System.out.println("\n========== AI GROCERY COMPANION ==========");
             System.out.println("1. Home - Generate Shopping Plan");
@@ -118,16 +129,12 @@ public class ShoppingCLI {
         ensureAI();
         System.out.println("[HOME] Generating an AI plan and searching online for products...");
         // Do not erase an existing plan if an external request fails.
-        String context = "";
-        if (!preferredStores.isEmpty() || !preferredBrands.isEmpty()
-                || !restrictions.isEmpty() || !allergies.isEmpty() || !exclusions.isEmpty()) {
-            context = "\nShopping preferences: preferred stores " + preferredStores
-                + "; preferred brands " + preferredBrands
-                + "; dietary restrictions " + restrictions
-                + "; allergies " + allergies
-                + "; excluded ingredients/products " + exclusions
-                + ". Do not assert allergy safety without checked ingredients.";
-        }
+        String context = "\nShopping preferences: preferred stores " + preferences.getPreferredStores()
+            + "; preferred brands " + preferences.getPreferredBrands()
+            + "; dietary restrictions " + preferences.getDietaryRestrictions()
+            + "; allergies " + preferences.getAllergies()
+            + "; excluded ingredients/products " + preferences.getExcludedItems()
+            + ". Respect these preferences, but do not claim allergy safety without verified ingredients.";
         ShoppingRequest request = new ShoppingRequest(goal + context, budget);
         WebPlanResult result = agent.createWebPlan(request, webSearch, extractor,
             true, membership, LocalDate.now(),
@@ -145,6 +152,11 @@ public class ShoppingCLI {
             System.out.println("Partial plan: " + result.unresolvedItems().size() + " unresolved item(s).");
         }
         for (String warning : result.warnings()) System.out.println("Warning: " + warning);
+        for (ShoppingItem item : currentPlan.getShoppingItems()) {
+            if (item.getProduct() != null && isExcluded(item.getProduct().getName()))
+                System.out.println("Warning: selected product may conflict with excluded-item preferences: "
+                    + item.getProduct().getName());
+        }
         showPlan();
     }
 
@@ -249,12 +261,23 @@ public class ShoppingCLI {
         int index = selection("Item to replace: ", currentPlan.getShoppingItems().size());
         if (index < 0) return;
         ShoppingItem item = currentPlan.getShoppingItems().get(index);
-        List<WebProductListing> alternatives = candidatesFor(item.getName());
+        List<WebProductListing> alternatives = candidatesFor(item.getName()).stream()
+            .filter(listing -> !sameListing(listing, item.getProduct()))
+            .filter(listing -> !isExcluded(listing.name()))
+            .toList();
         if (alternatives.isEmpty()) { System.out.println("No cached alternatives for this item."); return; }
         for (int i = 0; i < alternatives.size(); i++) showListing(i + 1, alternatives.get(i));
         int selected = selection("Choose alternative: ", alternatives.size());
         if (selected < 0) return;
         WebProductListing listing = alternatives.get(selected);
+        if (item.getProduct() != null && sameListing(listing, item.getProduct())) {
+            System.out.println("That product is already selected; choose a different alternative.");
+            return;
+        }
+        if (isExcluded(listing.name())) {
+            System.out.println("Cannot select an excluded product: " + listing.name());
+            return;
+        }
         item.setProduct(product(listing));
         // The selected product becomes the baseline for subsequent optimizations.
         if (optimizationBase != null) {
@@ -334,7 +357,10 @@ public class ShoppingCLI {
         ensureAI();
         System.out.println("Searching the web for " + query + "...");
         WebSearchResult research = webSearch.search(query);
-        List<WebProductListing> listings = extractor.extract(research, category);
+        List<WebProductListing> listings = extractor.extract(research, category).stream()
+            .filter(p -> Double.isFinite(p.price()) && p.price() > 0
+                && Double.isFinite(p.size()) && p.size() > 0)
+            .distinct().limit(3).toList();
         searchResults.put(query, new ArrayList<>(listings));
         history.save(query, listings);
         if (listings.isEmpty()) System.out.println("No sourced price-bearing listings found.");
@@ -388,6 +414,10 @@ public class ShoppingCLI {
         int selected = selection("Product to add: ", listings.size());
         if (selected < 0) return;
         WebProductListing listing = listings.get(selected);
+        if (isExcluded(listing.name())) {
+            System.out.println("Cannot add an excluded product: " + listing.name());
+            return;
+        }
         ShoppingItem item = new ShoppingItem(listing.name(), listing.category(),
             positiveInt("Number of packages: "));
         item.setProduct(product(listing));
@@ -400,27 +430,72 @@ public class ShoppingCLI {
         System.out.println("Added to current plan.");
     }
 
-    private void preferencesMenu() {
+    private void preferencesMenu() throws IOException {
         while (true) {
-            System.out.println("\n=== PREFERENCES (CURRENT CLI SESSION) ===");
-            System.out.println("Stores: " + preferredStores + " | Brands: " + preferredBrands);
-            System.out.println("Restrictions: " + restrictions + " | Allergies: " + allergies);
-            System.out.println("Excluded items: " + exclusions);
-            System.out.println("1. Add Preferred Store\n2. Add Preferred Brand\n3. Add Dietary Restriction");
-            System.out.println("4. Add Allergy\n5. Exclude Product\n6. Set Membership\n0. Back");
+            System.out.println("\n=== PREFERENCES (SHARED WITH GUI) ===");
+            System.out.println("Stores: " + preferences.getPreferredStores()
+                + " | Brands: " + preferences.getPreferredBrands());
+            System.out.println("Restrictions: " + preferences.getDietaryRestrictions()
+                + " | Allergies: " + preferences.getAllergies());
+            System.out.println("Excluded items: " + preferences.getExcludedItems());
+            System.out.println("1. Add Preferred Store\n2. Remove Preferred Store");
+            System.out.println("3. Add Preferred Brand\n4. Remove Preferred Brand");
+            System.out.println("5. Add Dietary Restriction\n6. Remove Dietary Restriction");
+            System.out.println("7. Add Allergy\n8. Remove Allergy");
+            System.out.println("9. Exclude Product\n10. Remove Excluded Product");
+            System.out.println("11. Set Membership (CLI session only)\n12. Save Preferences");
+            System.out.println("13. Reload Saved Preferences\n0. Back");
             String c = input("Select: ");
             if (c.equals("0")) return;
             switch (c) {
-                case "1" -> { String v = required("Store: "); preferredStores.add(v); preferences.addPreferredStore(v); }
-                case "2" -> { String v = required("Brand: "); preferredBrands.add(v); preferences.addPreferredBrand(v); }
-                case "3" -> { String v = required("Restriction: "); restrictions.add(v); preferences.addDietaryRestriction(v); }
-                case "4" -> { String v = required("Allergy: "); allergies.add(v); preferences.addAllergy(v); }
-                case "5" -> { String v = required("Exclude: "); exclusions.add(v); preferences.addExcludedItem(v); }
-                case "6" -> membership = yes("Membership active? (y/n): ");
-                default -> System.out.println("Invalid choice.");
+                case "1" -> preferences.addPreferredStore(required("Store: "));
+                case "2" -> preferences.removePreferredStore(required("Store to remove: "));
+                case "3" -> preferences.addPreferredBrand(required("Brand: "));
+                case "4" -> preferences.removePreferredBrand(required("Brand to remove: "));
+                case "5" -> preferences.addDietaryRestriction(required("Restriction: "));
+                case "6" -> preferences.removeDietaryRestriction(required("Restriction to remove: "));
+                case "7" -> preferences.addAllergy(required("Allergy: "));
+                case "8" -> preferences.removeAllergy(required("Allergy to remove: "));
+                case "9" -> preferences.addExcludedItem(required("Product to exclude: "));
+                case "10" -> preferences.removeExcludedItem(required("Product to unexclude: "));
+                case "11" -> { membership = yes("Membership active? (y/n): "); continue; }
+                case "12" -> { savePreferences(); continue; }
+                case "13" -> {
+                    preferences = preferencesService.load();
+                    System.out.println("Preferences reloaded from the same file used by the GUI.");
+                    continue;
+                }
+                default -> { System.out.println("Invalid choice."); continue; }
             }
-            System.out.println("Changes apply during this CLI session; saved GUI preferences are not modified.");
+            System.out.println("Preference changed in this session. Select 12 to save for the GUI and future runs.");
         }
+    }
+
+    private void savePreferences() throws IOException {
+        Map<String, List<String>> data = new TreeMap<>();
+        data.put("preferredStores", List.copyOf(preferences.getPreferredStores()));
+        data.put("preferredBrands", List.copyOf(preferences.getPreferredBrands()));
+        data.put("dietaryRestrictions", List.copyOf(preferences.getDietaryRestrictions()));
+        data.put("allergies", List.copyOf(preferences.getAllergies()));
+        data.put("excludedItems", List.copyOf(preferences.getExcludedItems()));
+        Files.createDirectories(PREFERENCES_FILE.getParent());
+        mapper.writerWithDefaultPrettyPrinter().writeValue(PREFERENCES_FILE.toFile(), data);
+        System.out.println("Preferences saved for both CLI and GUI.");
+    }
+
+    private boolean isExcluded(String productName) {
+        String name = productName.toLowerCase(Locale.ROOT);
+        return preferences.getExcludedItems().stream()
+            .filter(value -> value != null && !value.isBlank())
+            .anyMatch(value -> name.contains(value.trim().toLowerCase(Locale.ROOT)));
+    }
+
+    private static boolean sameListing(WebProductListing listing, Product product) {
+        return product != null && listing.name().equalsIgnoreCase(product.getName())
+            && StoreNameNormalizer.normalize(listing.store()).equalsIgnoreCase(product.getStore())
+            && Double.compare(listing.price(), product.getPrice()) == 0
+            && Double.compare(listing.size(), product.getSize()) == 0
+            && listing.unit().equalsIgnoreCase(product.getUnit());
     }
 
     private void checklistsMenu() throws IOException {
@@ -495,7 +570,8 @@ public class ShoppingCLI {
         int index = selection("Item number: ", currentPlan.getShoppingItems().size());
         if (index < 0) return;
         ShoppingItem item = currentPlan.getShoppingItems().get(index);
-        item.setPurchased(!item.isPurchased());
+        new ShoppingController(new ProductSearchService(List.of()))
+            .updateChecklist(new SetPurchasedCommand(currentPlan, item, !item.isPurchased()));
         if (optimizationBase != null) optimizationBase.getShoppingItems().stream()
             .filter(i -> i.getName().equalsIgnoreCase(item.getName())).findFirst()
             .ifPresent(i -> i.setPurchased(item.isPurchased()));
