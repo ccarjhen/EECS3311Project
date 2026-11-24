@@ -1,6 +1,7 @@
 package grocery.cli;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -45,7 +46,6 @@ import grocery.strategy.FewestStoresStrat;
 import grocery.strategy.OneStoreStrat;
 import grocery.strategy.OptimizationStrat;
 import grocery.util.StoreNameNormalizer;
-
 /** Console interface following the same five pages as the JavaFX application. */
 public class ShoppingCLI {
     private final Scanner scanner = new Scanner(System.in);
@@ -75,8 +75,20 @@ public class ShoppingCLI {
     private boolean membership;
 
     public static void main(String[] args) {
-        new ShoppingCLI().start();
+    ShoppingCLI cli = new ShoppingCLI();
+
+    if (args.length == 0) {
+        cli.start(); // Existing interactive menu
+        return;
     }
+
+    try {
+        cli.runFromArguments(args);
+    } catch (Exception e) {
+        System.err.println("CLI error: " + e.getMessage());
+        System.exit(1);
+    }
+}
 
     public void start() {
         try {
@@ -125,7 +137,13 @@ public class ShoppingCLI {
         System.out.println("\n=== HOME: GENERATE SHOPPING PLAN ===");
         String goal = required("Describe your grocery shopping goal: ");
         double budget = positiveDouble("Budget (CAD): ");
-        membership = yes("Do you have applicable loyalty memberships? (y/n): ");
+        boolean hasMembership = yes("Do you have applicable loyalty memberships? (y/n): ");
+        generatePlan(goal, budget, hasMembership);
+    }
+
+    /** Shared implementation for interactive and standalone task-file execution. */
+    private void generatePlan(String goal, double budget, boolean hasMembership) throws Exception {
+        membership = hasMembership;
         ensureAI();
         System.out.println("[HOME] Generating an AI plan and searching online for products...");
         // Do not erase an existing plan if an external request fails.
@@ -720,5 +738,102 @@ public class ShoppingCLI {
             if (choice <= max) return choice - 1;
             System.out.println("Choose a number between 0 and " + max + ".");
         }
+    }
+
+    private void runFromArguments(String[] args) throws Exception {
+        boolean useLLM = false;
+        Path inputFile = null;
+
+        for (int i = 0; i < args.length; i++) {
+            switch (args[i]) {
+                case "-LLMAPI" -> useLLM = true;
+
+                case "-input" -> {
+                    if (i + 1 >= args.length) {
+                        throw new IllegalArgumentException(
+                            "Missing filename after -input");
+                    }
+
+                    inputFile = Path.of(args[++i]);
+                }
+
+                case "-help", "--help" -> {
+                    printHelp();
+                    return;
+                }
+
+                default -> throw new IllegalArgumentException(
+                    "Unknown option: " + args[i]);
+            }
+        }
+
+        if (!useLLM || inputFile == null) {
+            throw new IllegalArgumentException(
+                "Task mode requires -LLMAPI -input <file>");
+        }
+
+        if (!Files.isRegularFile(inputFile) || !Files.isReadable(inputFile)) {
+            throw new IOException("Cannot read task file: " + inputFile);
+        }
+        List<String> lines = Files.readAllLines(
+            inputFile, StandardCharsets.UTF_8);
+
+        double budget = 50.0;
+        boolean hasMembership = false;
+        StringBuilder request = new StringBuilder();
+
+        for (String line : lines) {
+            String trimmed = line.trim();
+
+            if (trimmed.startsWith("#")) {
+                continue;
+            } else if (trimmed.startsWith("budget=")) {
+                budget = Double.parseDouble(
+                    trimmed.substring("budget=".length()).trim());
+
+            } else if (trimmed.startsWith("membership=")) {
+                String value = trimmed.substring(
+                    "membership=".length()).trim();
+
+                if (!value.equalsIgnoreCase("true") &&
+                    !value.equalsIgnoreCase("false")) {
+                    throw new IllegalArgumentException(
+                        "membership must be true or false");
+                }
+
+                hasMembership = Boolean.parseBoolean(value);
+
+            } else if (!trimmed.isBlank()) {
+                request.append(trimmed).append(" ");
+            }
+        }
+
+        if (request.toString().isBlank() ||
+            !Double.isFinite(budget) || budget <= 0) {
+            throw new IllegalArgumentException(
+                "A shopping request and positive budget are required");
+        }
+
+        try {
+            preferences = preferencesService.load();
+        } catch (IOException e) {
+            throw new IOException(
+                "Unable to load saved preferences", e);
+        }
+
+        generatePlan(request.toString().trim(), budget, hasMembership);
+    }
+
+    private void printHelp() {
+        System.out.println("AI Grocery Companion CLI");
+        System.out.println("Usage:");
+        System.out.println("  java -jar Agent.jar");
+        System.out.println(
+            "  java -jar Agent.jar -LLMAPI -input task.txt");
+        System.out.println();
+        System.out.println("Options:");
+        System.out.println("  -LLMAPI      Enable AI task processing");
+        System.out.println("  -input FILE  Read shopping request from FILE");
+        System.out.println("  -help        Show this help message");
     }
 }

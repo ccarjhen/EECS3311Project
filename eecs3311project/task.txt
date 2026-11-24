@@ -1,0 +1,5 @@
+# Grocery Companion standalone task example
+budget=50
+membership=false
+
+I need ingredients for a spaghetti dinner for four people.

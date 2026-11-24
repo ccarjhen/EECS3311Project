@@ -106,7 +106,53 @@ The JavaFX application opens with five main views:
 
 ## 6. Launching the CLI
 
-From the same project directory, run:
+### Standalone executable JAR
+
+From the `eecs3311project` directory, build the executable JAR (requires Maven and JDK 25):
+
+```bash
+mvn clean package
+```
+
+This creates `target/Agent.jar`, which includes the CLI and its required Java dependencies.
+After the JAR is built, users can run it with Java without invoking Maven.
+
+**Interactive mode** opens the existing five-section command-line menu:
+
+```bash
+java -jar target/Agent.jar
+```
+
+**Task-file mode** runs the AI shopping planner on a text file and prints the generated plan:
+
+```bash
+java -jar target/Agent.jar -LLMAPI -input task.txt
+```
+
+Create `task.txt` in the project directory with the following content:
+
+```text
+budget=50
+membership=false
+
+I need ingredients for a spaghetti dinner for four people.
+```
+
+Supported options:
+
+| Option | Meaning |
+| --- | --- |
+| *(none)* | Start interactive CLI |
+| `-LLMAPI` | Enable task-file AI processing (required with `-input`) |
+| `-input FILE` | Read the shopping request and settings from the named UTF-8 text file |
+| `-help` or `--help` | Print usage and exit |
+
+Task-file settings: `budget=...` sets a positive CAD budget (default 50); `membership=true` or `membership=false` sets membership eligibility (default false). Other nonempty, non-comment lines are combined into a natural-language shopping request. Lines starting with `#` are comments.
+Both flags (`-LLMAPI` and `-input FILE`) are needed for noninteractive task execution. Unknown flags, missing files, and invalid values produce an error.
+The `-LLMAPI` flag does **not** contain your API key: the Claude client reads `ANTHROPIC_API_KEY` from the environment. Load your `.env` first as described in Section 4; never put secrets in `task.txt` or pass them as command-line values.
+The task mode invokes the same AI plan-generation workflow as Home, including stored preferences, web product retrieval, selected products, and budget warnings. Results depend on external API availability and online sources.
+
+**Alternative Maven launch** (for development):
 
 ```bash
 mvn org.codehaus.mojo:exec-maven-plugin:3.6.2:java -Dexec.mainClass="grocery.cli.ShoppingCLI"
@@ -188,7 +234,7 @@ The application saves local data in the user's home directory:
 
 **Missing Anthropic API key**
 
-Confirm that `.env` contains the correct key and that the environment variables were loaded before running Maven.
+Confirm that `.env` contains the correct key and that the environment variables were loaded before running Maven or `java -jar`.
 
 **Maven cannot find pom.xml**
 
